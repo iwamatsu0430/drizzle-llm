@@ -1,0 +1,2 @@
+export { DrizzleLLMClient, QueryExecutor, LLMExtension, createLLMExtension, extendDrizzle, extendDrizzleFromDistributed } from './client.js';
+export type { QueryExecutor as IQueryExecutor } from './client.js';
