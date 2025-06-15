@@ -1,5 +1,5 @@
-import { llm } from "drizzle-llm";
 import type { Sqlite } from "@/types";
+import { llm } from "drizzle-llm";
 import type { User } from "./types";
 
 export async function findName(db: Sqlite, id: string): Promise<string | undefined> {
@@ -11,5 +11,7 @@ export async function list(db: Sqlite): Promise<User[]> {
 }
 
 export async function getAverageOfAge(db: Sqlite): Promise<number> {
-  return await db.get<number>(llm`ユーザーの平均年齢を取得する`).then((value: number) => value ?? -1);
+  return await db
+    .get<number>(llm`ユーザーの平均年齢を取得する`)
+    .then((value: number) => value ?? -1);
 }

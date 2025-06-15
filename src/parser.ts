@@ -1,7 +1,7 @@
-import { Project, SourceFile, Node, CallExpression, SyntaxKind } from 'ts-morph';
-import { createHash } from 'crypto';
-import { readFileSync } from 'fs';
-import { CollectedQuery } from './types';
+import { createHash } from "crypto";
+import { readFileSync } from "fs";
+import { type CallExpression, Node, Project, type SourceFile, SyntaxKind } from "ts-morph";
+import type { CollectedQuery } from "./types";
 
 /**
  * AST parser for collecting db.llm() calls from TypeScript source files
@@ -32,10 +32,10 @@ export class QueryParser {
         const sourceFile = this.project.addSourceFileAtPath(filePath);
         const fileQueries = this.extractQueriesFromFile(sourceFile, filePath);
         queries.push(...fileQueries);
-      } catch (error) {
+      } catch (_error) {
         // If file doesn't exist, try adding it as source text
         try {
-          const content = readFileSync(filePath, 'utf-8');
+          const content = readFileSync(filePath, "utf-8");
           const sourceFile = this.project.createSourceFile(filePath, content, { overwrite: true });
           const fileQueries = this.extractQueriesFromFile(sourceFile, filePath);
           queries.push(...fileQueries);
@@ -64,7 +64,11 @@ export class QueryParser {
     return queries;
   }
 
-  private extractQueryFromCallExpression(node: CallExpression, filePath: string, sourceFile: SourceFile): CollectedQuery | null {
+  private extractQueryFromCallExpression(
+    node: CallExpression,
+    filePath: string,
+    sourceFile: SourceFile
+  ): CollectedQuery | null {
     // Check if this is a db.llm() call
     if (!this.isDbLLMCall(node)) {
       return null;
@@ -83,7 +87,7 @@ export class QueryParser {
     const intent = intentArg.getLiteralValue();
 
     // Extract parameters (second argument if present)
-    let params: Record<string, any> | undefined;
+    let params: Record<string, unknown> | undefined;
     if (args.length > 1) {
       const paramsArg = args[1];
       if (Node.isObjectLiteralExpression(paramsArg)) {
@@ -121,26 +125,28 @@ export class QueryParser {
 
   private isDbLLMCall(node: CallExpression): boolean {
     const expression = node.getExpression();
-    
+
     if (Node.isPropertyAccessExpression(expression)) {
       const name = expression.getName();
       const object = expression.getExpression();
-      
+
       // Check if it's *.llm() call
-      if (name === 'llm') {
+      if (name === "llm") {
         // Check if the object is 'db' identifier
         if (Node.isIdentifier(object)) {
-          return object.getText() === 'db';
+          return object.getText() === "db";
         }
       }
     }
-    
+
     return false;
   }
 
-  private extractObjectLiteral(node: any): Record<string, any> {
-    const result: Record<string, any> = {};
-    
+  private extractObjectLiteral(
+    node: import("ts-morph").ObjectLiteralExpression
+  ): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+
     try {
       // This is a simplified extraction - in a real implementation,
       // you'd want to handle more complex cases
@@ -149,7 +155,7 @@ export class QueryParser {
         if (Node.isPropertyAssignment(prop)) {
           const key = prop.getName();
           const value = prop.getInitializer();
-          
+
           if (!value) {
             result[key] = null;
           } else if (Node.isStringLiteral(value)) {
@@ -167,14 +173,14 @@ export class QueryParser {
       }
     } catch (error) {
       // If we can't parse the object literal, return empty object
-      console.warn('Failed to parse object literal:', error);
+      console.warn("Failed to parse object literal:", error);
     }
-    
+
     return result;
   }
 
-  private generateQueryId(intent: string, params?: Record<string, any>): string {
+  private generateQueryId(intent: string, params?: Record<string, unknown>): string {
     const content = JSON.stringify({ intent, params });
-    return createHash('sha256').update(content).digest('hex').substring(0, 16);
+    return createHash("sha256").update(content).digest("hex").substring(0, 16);
   }
 }

@@ -1,32 +1,32 @@
 /**
  * Template tag function for defining LLM queries
- * 
+ *
  * This module provides the `llm` template tag that allows developers to write
  * natural language queries that get compiled to SQL at build time.
  */
 
+import { readFileSync } from "fs";
+import { resolve } from "path";
 // Import SQL types directly from drizzle-orm instead of deleted drizzle-types.js
-import type { SQL, SQLWrapper } from 'drizzle-orm';
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { generateRuntimeQueryId } from '../utils/hash.js';
+import type { SQL, SQLWrapper } from "drizzle-orm";
+import { generateRuntimeQueryId } from "../utils/hash.js";
 
 /**
  * Interface for generated query metadata
  */
 export interface GeneratedQueryConfig {
   parameters: string[];
-  sql?: string;      // For backward compatibility - will be removed
+  sql?: string; // For backward compatibility - will be removed
 }
 
 /**
  * Interface for a generated query that can be executed
  */
-export interface GeneratedQuery<T = unknown> {
+export interface GeneratedQuery<_T = unknown> {
   readonly sql: string;
   readonly params: string[];
   readonly intent: string;
-  readonly _brand: 'GeneratedQuery';
+  readonly _brand: "GeneratedQuery";
   toSQL(): SQL;
 }
 
@@ -42,63 +42,61 @@ function loadSqlFromFile(queryId: string): string {
   if (sqlFileCache.has(queryId)) {
     return sqlFileCache.get(queryId)!;
   }
-  
+
   // Find SQL files in common locations
-  const commonPaths = [
-    './src/query/user.sql',
-    './query/user.sql',
-    './user.sql'
-  ];
-  
+  const commonPaths = ["./src/query/user.sql", "./query/user.sql", "./user.sql"];
+
   let sqlFilePath: string | null = null;
-  let content: string = '';
-  
+  let content = "";
+
   // Try to find and read the SQL file
   for (const path of commonPaths) {
     try {
-      content = readFileSync(resolve(process.cwd(), path), 'utf8');
+      content = readFileSync(resolve(process.cwd(), path), "utf8");
       sqlFilePath = path;
       break;
     } catch {
       // Continue to next path
     }
   }
-  
+
   if (!sqlFilePath) {
-    throw new Error(`Could not find SQL file for query ${queryId}. Searched: ${commonPaths.join(', ')}`);
+    throw new Error(
+      `Could not find SQL file for query ${queryId}. Searched: ${commonPaths.join(", ")}`
+    );
   }
-  
+
   // Parse SQL file and find the query by ID (hash)
-  const lines = content.split('\n');
-  let currentHash = '';
+  const lines = content.split("\n");
+  let currentHash = "";
   let sqlLines: string[] = [];
   let foundQuery = false;
-  
+
   for (const line of lines) {
-    if (line.startsWith('-- ') && line.length > 10 && !line.startsWith('-- ユーザー')) {
+    if (line.startsWith("-- ") && line.length > 10 && !line.startsWith("-- ユーザー")) {
       // Save previous query if we found a match
       if (foundQuery && currentHash === queryId) {
-        const sql = sqlLines.join('\n').trim();
+        const sql = sqlLines.join("\n").trim();
         sqlFileCache.set(queryId, sql);
         return sql;
       }
-      
+
       // Start new query
       currentHash = line.substring(3).trim();
       sqlLines = [];
       foundQuery = currentHash === queryId;
-    } else if (foundQuery && !line.startsWith('--')) {
+    } else if (foundQuery && !line.startsWith("--")) {
       sqlLines.push(line);
     }
   }
-  
+
   // Check the last query
   if (foundQuery && currentHash === queryId) {
-    const sql = sqlLines.join('\n').trim();
+    const sql = sqlLines.join("\n").trim();
     sqlFileCache.set(queryId, sql);
     return sql;
   }
-  
+
   throw new Error(`SQL query with ID ${queryId} not found in ${sqlFilePath}`);
 }
 
@@ -108,13 +106,11 @@ function loadSqlFromFile(queryId: string): string {
  */
 export function llmPlaceholder(strings: TemplateStringsArray, ...values: any[]): SQLWrapper {
   const intent = strings.reduce((acc, str, i) => {
-    return acc + str + (values[i] || '');
-  }, '');
-  
+    return acc + str + (values[i] || "");
+  }, "");
+
   throw new Error(
-    `[Drizzle-LLM] Query not generated for intent: "${intent}"\n` +
-    `Please run 'npm run build' or 'vite build' to generate SQL queries.\n` +
-    `Ensure your vite.config.ts includes the drizzleLLM plugin.`
+    `[Drizzle-LLM] Query not generated for intent: "${intent}"\nPlease run 'npm run build' or 'vite build' to generate SQL queries.\nEnsure your vite.config.ts includes the drizzleLLM plugin.`
   );
 }
 
@@ -125,38 +121,33 @@ export function llmPlaceholder(strings: TemplateStringsArray, ...values: any[]):
 export function createLLMTag(
   generatedQueries: Record<string, GeneratedQueryConfig>,
   intentToId: Record<string, string>
-): <T = unknown>(strings: TemplateStringsArray, ...values: any[]) => SQLWrapper {
-  return function llm<T = unknown>(
-    strings: TemplateStringsArray,
-    ...values: any[]
-  ): SQLWrapper {
+): <_T = unknown>(strings: TemplateStringsArray, ...values: any[]) => SQLWrapper {
+  return function llm<_T = unknown>(strings: TemplateStringsArray, ...values: any[]): SQLWrapper {
     // Reconstruct the template pattern with placeholders for lookup
     const intentPattern = strings.reduce((acc, str, i) => {
       if (i < values.length) {
-        return acc + str + `\${${i}}`;
+        return `${acc + str}\${${i}}`;
       }
       return acc + str;
-    }, '');
-    
+    }, "");
+
     // Also reconstruct the full intent with actual values for error messages
     const fullIntent = strings.reduce((acc, str, i) => {
-      return acc + str + (values[i] || '');
-    }, '');
-    
+      return acc + str + (values[i] || "");
+    }, "");
+
     // Look up the query using the pattern
     const queryId = intentToId[intentPattern] || hashIntent(intentPattern);
     const queryConfig = generatedQueries[queryId];
-    
+
     if (!queryConfig) {
       throw new Error(
-        `[Drizzle-LLM] No query found for intent: "${fullIntent}" (pattern: "${intentPattern}")\n` +
-        `This query may have been added after the last generation.\n` +
-        `Run 'npm run build' to update.`
+        `[Drizzle-LLM] No query found for intent: "${fullIntent}" (pattern: "${intentPattern}")\nThis query may have been added after the last generation.\nRun 'npm run build' to update.`
       );
     }
-    
+
     // Query validation is now handled by the cache system during build
-    
+
     // Load SQL from .sql file using query ID
     let processedSql: string;
     try {
@@ -169,18 +160,18 @@ export function createLLMTag(
         throw new Error(`[Drizzle-LLM] No SQL found for query "${fullIntent}": ${error}`);
       }
     }
-    
+
     // Return as Drizzle SQL object with proper parameter binding
     // Use dynamic import to ensure we use the consumer's drizzle-orm instance
-    const { sql: consumerSql } = require('drizzle-orm');
+    const { sql: consumerSql } = require("drizzle-orm");
     const { sql } = consumerSql; // Extract sql helper
-    
+
     if (values.length > 0) {
       // SQL can have either ? placeholders (SQLite) or $1, $2, etc. (PostgreSQL)
       // Handle both formats
       let result = consumerSql``;
-      
-      if (processedSql.includes('$1')) {
+
+      if (processedSql.includes("$1")) {
         // PostgreSQL-style placeholders ($1, $2, ...)
         let sqlWithParameters = processedSql;
         for (let i = 0; i < values.length; i++) {
@@ -194,7 +185,7 @@ export function createLLMTag(
         result = consumerSql`${result}${consumerSql.raw(sqlWithParameters)}`;
       } else {
         // SQLite-style placeholders (?)
-        const sqlParts = processedSql.split('?');
+        const sqlParts = processedSql.split("?");
         for (let i = 0; i < sqlParts.length; i++) {
           result = consumerSql`${result}${consumerSql.raw(sqlParts[i])}`;
           if (i < values.length) {
@@ -202,11 +193,10 @@ export function createLLMTag(
           }
         }
       }
-      
+
       return result;
-    } else {
-      return consumerSql.raw(processedSql);
     }
+    return consumerSql.raw(processedSql);
   };
 }
 
@@ -240,7 +230,10 @@ export function registerQueries(
 /**
  * Get the current llm implementation based on registered queries
  */
-function createCurrentLLMInstance(): <T = unknown>(strings: TemplateStringsArray, ...values: any[]) => SQLWrapper {
+function createCurrentLLMInstance(): <_T = unknown>(
+  strings: TemplateStringsArray,
+  ...values: any[]
+) => SQLWrapper {
   if (Object.keys(globalQueryRegistry).length === 0) {
     return llmPlaceholder as any;
   }
@@ -251,8 +244,10 @@ function createCurrentLLMInstance(): <T = unknown>(strings: TemplateStringsArray
  * The main llm template tag function
  * Dynamically uses registered queries or placeholder
  */
-export const llm: <T = unknown>(strings: TemplateStringsArray, ...values: any[]) => SQLWrapper = 
-  (strings: TemplateStringsArray, ...values: any[]) => {
-    const currentInstance = createCurrentLLMInstance();
-    return currentInstance(strings, ...values);
-  };
+export const llm: <_T = unknown>(strings: TemplateStringsArray, ...values: any[]) => SQLWrapper = (
+  strings: TemplateStringsArray,
+  ...values: any[]
+) => {
+  const currentInstance = createCurrentLLMInstance();
+  return currentInstance(strings, ...values);
+};

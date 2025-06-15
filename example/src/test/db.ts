@@ -1,13 +1,13 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from "@/schema";
-import { Sqlite } from '@/types';
+import type { Sqlite } from "@/types";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 
 export const TestDb = {
   using: async (fn: (db: Sqlite) => Promise<void>) => {
     return async () => {
       // Create in-memory database
-      const sqlite = new Database(':memory:');
+      const sqlite = new Database(":memory:");
       const db = drizzle(sqlite, { schema });
 
       // Create tables
@@ -33,5 +33,5 @@ export const TestDb = {
         sqlite.close();
       }
     };
-  }
+  },
 };

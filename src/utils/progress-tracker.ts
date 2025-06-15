@@ -1,10 +1,10 @@
-import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'fs';
-import { resolve } from 'path';
-import { GeneratedQuery, CollectedQuery } from '../types';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { resolve } from "path";
+import type { CollectedQuery, GeneratedQuery } from "../types";
 
 /**
  * State information for tracking query generation progress
- * 
+ *
  * Used to persist and restore generation progress across interruptions,
  * enabling resumable builds for large query sets.
  */
@@ -25,15 +25,15 @@ export interface ProgressState {
 
 /**
  * Progress tracker for resumable query generation
- * 
+ *
  * Provides functionality to save and restore generation progress, enabling:
  * - Resumable builds after interruption
  * - Progress persistence across sessions
  * - Recovery from partial failures
- * 
+ *
  * Progress is stored in a JSON file and automatically expires after 1 hour
  * to prevent stale state from interfering with fresh builds.
- * 
+ *
  * Features:
  * - Automatic progress file management
  * - Timestamp-based expiration
@@ -45,21 +45,21 @@ export class ProgressTracker {
 
   /**
    * Create a new progress tracker
-   * 
+   *
    * @param outputDir - Directory where progress file will be stored
    */
   constructor(outputDir: string) {
-    this.progressFile = resolve(outputDir, '.drizzle-llm-progress.json');
+    this.progressFile = resolve(outputDir, ".drizzle-llm-progress.json");
   }
 
   /**
    * Save current generation progress to disk
-   * 
+   *
    * Persists the current state including completed queries, failures,
    * and remaining work. This enables resuming generation after interruption.
-   * 
+   *
    * @param state - Current progress state to save
-   * 
+   *
    * @example
    * ```typescript
    * const state: ProgressState = {
@@ -75,22 +75,22 @@ export class ProgressTracker {
    */
   saveProgress(state: ProgressState): void {
     try {
-      writeFileSync(this.progressFile, JSON.stringify(state, null, 2), 'utf8');
+      writeFileSync(this.progressFile, JSON.stringify(state, null, 2), "utf8");
     } catch (error) {
-      console.warn('⚠️  Failed to save progress:', error);
+      console.warn("⚠️  Failed to save progress:", error);
     }
   }
 
   /**
    * Load previously saved progress from disk
-   * 
+   *
    * Attempts to restore a previous generation session. Returns null if:
    * - No progress file exists
    * - Progress file is corrupted
    * - Progress is older than 1 hour (considered stale)
-   * 
+   *
    * @returns Previous progress state or null if not available
-   * 
+   *
    * @example
    * ```typescript
    * const progress = tracker.loadProgress();
@@ -107,27 +107,27 @@ export class ProgressTracker {
         return null;
       }
 
-      const content = readFileSync(this.progressFile, 'utf8');
+      const content = readFileSync(this.progressFile, "utf8");
       const state = JSON.parse(content) as ProgressState;
-      
+
       // Check if progress is recent (within last hour)
       const ageMinutes = (Date.now() - state.timestamp) / (1000 * 60);
       if (ageMinutes > 60) {
-        console.log('⏰ Progress file is older than 1 hour, starting fresh...');
+        console.log("⏰ Progress file is older than 1 hour, starting fresh...");
         this.clearProgress();
         return null;
       }
 
       return state;
     } catch (error) {
-      console.warn('⚠️  Failed to load progress:', error);
+      console.warn("⚠️  Failed to load progress:", error);
       return null;
     }
   }
 
   /**
    * Clear saved progress by deleting the progress file
-   * 
+   *
    * Used to start fresh generation or clean up after completion.
    * Handles file deletion errors gracefully.
    */
@@ -137,16 +137,16 @@ export class ProgressTracker {
         unlinkSync(this.progressFile);
       }
     } catch (error) {
-      console.warn('⚠️  Failed to clear progress:', error);
+      console.warn("⚠️  Failed to clear progress:", error);
     }
   }
 
   /**
    * Check if a progress file exists
-   * 
+   *
    * Quick check to determine if there might be resumable progress available.
    * Note: This doesn't validate the progress file content or expiration.
-   * 
+   *
    * @returns True if progress file exists, false otherwise
    */
   hasProgress(): boolean {

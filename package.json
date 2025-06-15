@@ -26,7 +26,10 @@
     "dev": "tsx watch src/index.ts",
     "test": "vitest",
     "validate": "tsx src/validate.ts",
-    "claude": "claude"
+    "claude": "claude",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check --write ."
   },
   "license": "MIT",
   "description": "LLM build query using Drizzle ORM",
@@ -41,6 +44,7 @@
   "devDependencies": {
     "@anthropic-ai/claude-code": "^1.0.22",
     "@anthropic-ai/sdk": "^0.27.0",
+    "@biomejs/biome": "^1.9.4",
     "@types/node": "^20.11.0",
     "handlebars": "^4.7.8",
     "openai": "^4.28.0",

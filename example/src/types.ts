@@ -1,4 +1,4 @@
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import * as schema from "@/schema";
+import type * as schema from "./schema";
 
-export type Sqlite = BaseSQLiteDatabase<any, any, typeof schema>;
+export type Sqlite = BaseSQLiteDatabase<"async", Record<string, never>, typeof schema>;

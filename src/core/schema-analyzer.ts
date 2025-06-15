@@ -1,13 +1,13 @@
-import { Project, Node } from 'ts-morph';
-import { SchemaInfo, TableInfo, ColumnInfo, RelationInfo } from '../types';
+import { Node, Project } from "ts-morph";
+import type { ColumnInfo, RelationInfo, SchemaInfo, TableInfo } from "../types";
 
 /**
  * Advanced Drizzle ORM schema analyzer with comprehensive AST parsing
- * 
+ *
  * This class analyzes Drizzle ORM schema definitions to extract complete database
  * structure information. It uses TypeScript AST parsing to understand table definitions,
  * column types, constraints, and relationships.
- * 
+ *
  * Features:
  * - Full Drizzle ORM syntax support (pgTable, relations, etc.)
  * - Database column name mapping (camelCase to snake_case)
@@ -15,14 +15,14 @@ import { SchemaInfo, TableInfo, ColumnInfo, RelationInfo } from '../types';
  * - Enum value detection and validation
  * - Optimized schema formatting for LLM consumption
  * - PostgreSQL-specific type mapping
- * 
+ *
  * The analyzer generates structured schema information that enables accurate
  * SQL generation by providing LLMs with precise database structure context.
  */
 export class SchemaAnalyzer {
   /**
    * Core system prompt for LLM SQL generation
-   * 
+   *
    * This prompt establishes critical rules for generating accurate SQL:
    * - Exact database column name usage (not TypeScript property names)
    * - Proper parameterization with PostgreSQL syntax
@@ -50,29 +50,29 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Create a new schema analyzer
-   * 
+   *
    * Initializes a ts-morph Project for parsing TypeScript schema files.
    * Uses the project's tsconfig.json but doesn't load all files for performance.
    */
   constructor() {
     this.project = new Project({
-      tsConfigFilePath: './tsconfig.json',
+      tsConfigFilePath: "./tsconfig.json",
       skipAddingFilesFromTsConfig: true,
     });
   }
 
   /**
    * Analyze a Drizzle ORM schema file and extract complete database structure
-   * 
+   *
    * Parses the TypeScript schema file using AST analysis to identify:
    * - Table definitions (pgTable calls)
    * - Column specifications with types and constraints
    * - Primary keys and foreign key relationships
    * - Enum values and default values
-   * 
+   *
    * @param schemaPath - Absolute path to the Drizzle schema file
    * @returns Complete schema information including tables and relations
-   * 
+   *
    * @example
    * ```typescript
    * const analyzer = new SchemaAnalyzer();
@@ -102,30 +102,30 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Analyze multiple schema files or directories for schema information
-   * 
+   *
    * This method supports:
    * - Single file paths: './src/schema/user.ts'
    * - Directory paths: './src/schema' (looks for index.ts barrel file)
    * - Directory paths with auto-discovery: './src/schema' (scans all .ts files if no index.ts)
-   * 
+   *
    * @param schemaPath - Path to schema file or directory
    * @returns Complete schema information from all discovered files
    */
   async analyzeSchemaPath(schemaPath: string): Promise<SchemaInfo> {
-    const { existsSync, statSync } = await import('fs');
-    const { resolve, join } = await import('path');
-    const { glob } = await import('glob');
-    
+    const { existsSync, statSync } = await import("fs");
+    const { resolve, join } = await import("path");
+    const { glob } = await import("glob");
+
     const fullPath = resolve(schemaPath);
-    
+
     if (!existsSync(fullPath)) {
       throw new Error(`Schema path does not exist: ${schemaPath}`);
     }
-    
+
     const stats = statSync(fullPath);
     const allTables: TableInfo[] = [];
     const allRelations: RelationInfo[] = [];
-    
+
     if (stats.isFile()) {
       // Single file - analyze directly
       const schema = this.analyzeSchema(fullPath);
@@ -133,8 +133,8 @@ Generate optimized, valid SQL queries compatible with the database type.`;
       allRelations.push(...schema.relations);
     } else if (stats.isDirectory()) {
       // Directory - check for barrel file first, then auto-discover
-      const indexPath = join(fullPath, 'index.ts');
-      
+      const indexPath = join(fullPath, "index.ts");
+
       if (existsSync(indexPath)) {
         // Barrel file exists - analyze it and follow its re-exports
         const schema = await this.analyzeSchemaWithReExports(indexPath, fullPath);
@@ -142,11 +142,11 @@ Generate optimized, valid SQL queries compatible with the database type.`;
         allRelations.push(...schema.relations);
       } else {
         // No barrel file - scan for all .ts files in the directory
-        const pattern = join(fullPath, '**/*.ts');
-        const files = await glob(pattern, { 
-          ignore: ['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**']
+        const pattern = join(fullPath, "**/*.ts");
+        const files = await glob(pattern, {
+          ignore: ["**/*.test.ts", "**/*.spec.ts", "**/node_modules/**"],
         });
-        
+
         for (const file of files) {
           try {
             const schema = this.analyzeSchema(resolve(file));
@@ -159,11 +159,11 @@ Generate optimized, valid SQL queries compatible with the database type.`;
         }
       }
     }
-    
+
     if (allTables.length === 0) {
       console.warn(`Warning: No tables found in schema path: ${schemaPath}`);
     }
-    
+
     return {
       tables: allTables,
       relations: allRelations,
@@ -172,45 +172,48 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Analyze a barrel file and follow its re-exports to find schema definitions
-   * 
+   *
    * This method analyzes a barrel file (typically index.ts) that re-exports
    * schema definitions from other files. It follows the export statements
    * to analyze the actual schema files.
-   * 
+   *
    * @param barrelFilePath - Path to the barrel file (e.g., index.ts)
    * @param baseDirectory - Base directory containing the schema files
    * @returns Complete schema information from all re-exported files
    * @private
    */
-  private async analyzeSchemaWithReExports(barrelFilePath: string, baseDirectory: string): Promise<SchemaInfo> {
-    const { resolve, join, dirname } = await import('path');
+  private async analyzeSchemaWithReExports(
+    barrelFilePath: string,
+    baseDirectory: string
+  ): Promise<SchemaInfo> {
+    const { resolve, join, dirname } = await import("path");
     const sourceFile = this.project.addSourceFileAtPath(barrelFilePath);
     const allTables: TableInfo[] = [];
     const allRelations: RelationInfo[] = [];
-    
+
     // First, check if the barrel file itself contains any table definitions
     const directSchema = this.analyzeSchema(barrelFilePath);
     allTables.push(...directSchema.tables);
     allRelations.push(...directSchema.relations);
-    
+
     // Then, follow re-exports
     const exportDeclarations = sourceFile.getExportDeclarations();
-    
+
     exportDeclarations.forEach((exportDecl) => {
       const moduleSpecifier = exportDecl.getModuleSpecifierValue();
-      
+
       if (moduleSpecifier) {
         // Resolve relative imports
         let targetPath: string;
-        if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+        if (moduleSpecifier.startsWith("./") || moduleSpecifier.startsWith("../")) {
           // Relative import - resolve relative to the barrel file
           const barrelDir = dirname(barrelFilePath);
-          targetPath = resolve(barrelDir, moduleSpecifier + '.ts');
+          targetPath = resolve(barrelDir, `${moduleSpecifier}.ts`);
         } else {
           // Could be a path within the same directory
-          targetPath = join(baseDirectory, moduleSpecifier + '.ts');
+          targetPath = join(baseDirectory, `${moduleSpecifier}.ts`);
         }
-        
+
         try {
           const reExportedSchema = this.analyzeSchema(targetPath);
           allTables.push(...reExportedSchema.tables);
@@ -220,7 +223,7 @@ Generate optimized, valid SQL queries compatible with the database type.`;
         }
       }
     });
-    
+
     return {
       tables: allTables,
       relations: allRelations,
@@ -229,25 +232,25 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Extract table information from a variable declaration node
-   * 
+   *
    * Identifies pgTable() or table() function calls and extracts:
    * - Table name from the first argument
    * - Column definitions from the schema object
    * - Primary key information from related declarations
-   * 
+   *
    * @param node - Variable declaration AST node
    * @returns TableInfo object or null if not a valid table definition
    * @private
    */
   private extractTableInfo(node: any): TableInfo | null {
     const initializer = node.getInitializer();
-    
+
     if (!Node.isCallExpression(initializer)) {
       return null;
     }
 
     const expression = initializer.getExpression();
-    
+
     // Handle both pgTable() function calls and .table() method calls
     let functionName: string;
     if (Node.isIdentifier(expression)) {
@@ -259,7 +262,12 @@ Generate optimized, valid SQL queries compatible with the database type.`;
     }
 
     // Check for Drizzle table functions
-    if (functionName !== 'pgTable' && functionName !== 'table' && functionName !== 'sqliteTable' && functionName !== 'mysqlTable') {
+    if (
+      functionName !== "pgTable" &&
+      functionName !== "table" &&
+      functionName !== "sqliteTable" &&
+      functionName !== "mysqlTable"
+    ) {
       return null;
     }
 
@@ -292,10 +300,10 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Extract column definitions from a Drizzle table schema object
-   * 
+   *
    * Parses each property in the schema object to create ColumnInfo objects
    * with complete type, constraint, and relationship information.
-   * 
+   *
    * @param schemaNode - ObjectLiteralExpression containing column definitions
    * @returns Array of ColumnInfo objects
    * @private
@@ -311,7 +319,7 @@ Generate optimized, valid SQL queries compatible with the database type.`;
         if (Node.isCallExpression(initializer)) {
           // Extract the actual database column name
           const dbColumnName = this.extractDbColumnName(initializer);
-          
+
           const columnInfo = this.parseColumnDefinition(propertyName, initializer);
           if (columnInfo) {
             // Set the actual DB column name if found, otherwise use property name
@@ -327,44 +335,45 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Parse a complete column definition from Drizzle syntax
-   * 
+   *
    * Analyzes the entire method chain to extract:
    * - Base type (text, integer, uuid, etc.)
    * - Constraints (notNull, unique, primaryKey)
    * - Default values and functions
    * - Foreign key references
    * - Enum values for restricted columns
-   * 
+   *
    * @param name - Property name (TypeScript identifier)
    * @param callExpr - CallExpression representing the column definition
    * @returns Complete ColumnInfo or null if parsing fails
    * @private
-   * 
+   *
    * @example
    * For: `id: uuid('id').primaryKey().defaultRandom()`
    * Returns: ColumnInfo with type='uuid', constraints=['PRIMARY KEY'], defaultValue='defaultRandom()'
    */
   private parseColumnDefinition(name: string, callExpr: any): ColumnInfo | null {
-    let type = 'unknown';
+    let type = "unknown";
     let nullable = true; // Default to nullable
     let defaultValue: any = undefined;
     let enumValues: string[] | undefined = undefined;
-    let constraints: string[] = [];
+    const constraints: string[] = [];
     let references: { table: string; column: string } | undefined = undefined;
 
     // Find the root type call by traversing the expression chain
     const rootCall = this.findRootTypeCall(callExpr);
     if (rootCall) {
       type = this.mapDrizzleType(rootCall.typeName);
-      
+
       // Extract enum values from the root call if present
       if (rootCall.args.length >= 2 && Node.isObjectLiteralExpression(rootCall.args[1])) {
-        const enumProp = rootCall.args[1].getProperty('enum');
+        const enumProp = rootCall.args[1].getProperty("enum");
         if (enumProp && Node.isPropertyAssignment(enumProp)) {
           const enumInit = enumProp.getInitializer();
           if (Node.isArrayLiteralExpression(enumInit)) {
-            enumValues = enumInit.getElements()
-              .map(el => Node.isStringLiteral(el) ? el.getLiteralValue() : null)
+            enumValues = enumInit
+              .getElements()
+              .map((el) => (Node.isStringLiteral(el) ? el.getLiteralValue() : null))
               .filter(Boolean) as string[];
           }
         }
@@ -375,10 +384,14 @@ Generate optimized, valid SQL queries compatible with the database type.`;
     const chainedCalls = this.getAllChainedCalls(callExpr);
     for (const call of chainedCalls) {
       const methodName = call.methodName;
-      
-      if (methodName === 'notNull') {
+
+      if (methodName === "notNull") {
         nullable = false;
-      } else if (methodName === 'default' || methodName === 'defaultRandom' || methodName === 'defaultNow') {
+      } else if (
+        methodName === "default" ||
+        methodName === "defaultRandom" ||
+        methodName === "defaultNow"
+      ) {
         const args = call.args;
         if (args.length > 0) {
           defaultValue = this.extractLiteralValue(args[0]);
@@ -386,11 +399,11 @@ Generate optimized, valid SQL queries compatible with the database type.`;
           // For methods like defaultRandom() or defaultNow() with no args
           defaultValue = `${methodName}()`;
         }
-      } else if (methodName === 'unique') {
-        constraints.push('UNIQUE');
-      } else if (methodName === 'primaryKey') {
-        constraints.push('PRIMARY KEY');
-      } else if (methodName === 'references') {
+      } else if (methodName === "unique") {
+        constraints.push("UNIQUE");
+      } else if (methodName === "primaryKey") {
+        constraints.push("PRIMARY KEY");
+      } else if (methodName === "references") {
         // Extract foreign key reference
         const args = call.args;
         if (args.length > 0) {
@@ -420,33 +433,33 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Find the root type call in a Drizzle column definition chain
-   * 
+   *
    * Traverses the method chain backwards to find the initial type call
    * (e.g., text(), uuid(), integer()) that establishes the column's base type.
-   * 
+   *
    * @param callExpr - CallExpression to analyze
    * @returns Object with type name and arguments, or null if not found
    * @private
    */
   private findRootTypeCall(callExpr: any): { typeName: string; args: any[] } | null {
     let current = callExpr;
-    
+
     // Traverse up the call chain to find the root type call
     while (current && Node.isCallExpression(current)) {
       const expression = current.getExpression();
-      
+
       if (Node.isIdentifier(expression)) {
         // This is a root call like text(), uuid(), etc.
         const typeName = expression.getText();
         const args = current.getArguments();
         return { typeName, args };
-      } else if (Node.isPropertyAccessExpression(expression)) {
+      }
+      if (Node.isPropertyAccessExpression(expression)) {
         // This is a chained call, get the left side
         current = expression.getExpression();
-        
+
         // If the left side is a call expression, continue traversing
         if (Node.isCallExpression(current)) {
-          continue;
         } else if (Node.isIdentifier(current)) {
           // Found the root identifier
           const typeName = current.getText();
@@ -456,16 +469,16 @@ Generate optimized, valid SQL queries compatible with the database type.`;
         break;
       }
     }
-    
+
     return null;
   }
 
   /**
    * Get all chained method calls from a Drizzle column definition
-   * 
+   *
    * Extracts all methods in the chain (e.g., .notNull(), .default(), .unique())
    * to build a complete picture of column constraints and properties.
-   * 
+   *
    * @param callExpr - CallExpression representing the column definition
    * @returns Array of method calls with names and arguments
    * @private
@@ -473,69 +486,68 @@ Generate optimized, valid SQL queries compatible with the database type.`;
   private getAllChainedCalls(callExpr: any): Array<{ methodName: string; args: any[] }> {
     const calls: Array<{ methodName: string; args: any[] }> = [];
     let current = callExpr;
-    
+
     // Traverse the entire call chain
     while (current && Node.isCallExpression(current)) {
       const expression = current.getExpression();
-      
+
       if (Node.isPropertyAccessExpression(expression)) {
         const methodName = expression.getName();
         const args = current.getArguments();
         calls.unshift({ methodName, args }); // Add to front to maintain order
-        
+
         // Move to the left side of the property access
         current = expression.getExpression();
       } else {
         break;
       }
     }
-    
+
     return calls;
   }
 
   /**
    * Map Drizzle type names to PostgreSQL type names
-   * 
+   *
    * Converts Drizzle's type system to standard PostgreSQL types for
    * accurate SQL generation and validation.
-   * 
+   *
    * @param drizzleType - Drizzle type name (e.g., 'text', 'uuid', 'serial')
    * @returns Corresponding PostgreSQL type name
    * @private
    */
   private mapDrizzleType(drizzleType: string): string {
     const typeMap: Record<string, string> = {
-      'integer': 'integer',
-      'int': 'integer',
-      'serial': 'serial',
-      'bigint': 'bigint',
-      'bigserial': 'bigserial',
-      'boolean': 'boolean',
-      'text': 'text',
-      'varchar': 'varchar',
-      'char': 'char',
-      'uuid': 'uuid',
-      'timestamp': 'timestamp',
-      'date': 'date',
-      'time': 'time',
-      'json': 'json',
-      'jsonb': 'jsonb',
-      'real': 'real',
-      'double': 'double',
-      'decimal': 'decimal',
-      'numeric': 'numeric',
+      integer: "integer",
+      int: "integer",
+      serial: "serial",
+      bigint: "bigint",
+      bigserial: "bigserial",
+      boolean: "boolean",
+      text: "text",
+      varchar: "varchar",
+      char: "char",
+      uuid: "uuid",
+      timestamp: "timestamp",
+      date: "date",
+      time: "time",
+      json: "json",
+      jsonb: "jsonb",
+      real: "real",
+      double: "double",
+      decimal: "decimal",
+      numeric: "numeric",
     };
 
     return typeMap[drizzleType] || drizzleType;
   }
 
-
   /**
    * Extract primary key information from table definition
-   * 
+   *
    * Looks for primaryKey() calls in the same scope as the table definition
    * to identify composite primary keys.
-   * 
+   *
    * @param node - Table definition node
    * @returns Array of primary key column names or undefined
    * @private
@@ -548,7 +560,7 @@ Generate optimized, valid SQL queries compatible with the database type.`;
     for (const sibling of siblings) {
       if (Node.isCallExpression(sibling)) {
         const expr = sibling.getExpression();
-        if (Node.isPropertyAccessExpression(expr) && expr.getName() === 'primaryKey') {
+        if (Node.isPropertyAccessExpression(expr) && expr.getName() === "primaryKey") {
           const args = sibling.getArguments();
           return args.map((arg: any) => {
             if (Node.isPropertyAccessExpression(arg)) {
@@ -565,10 +577,10 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Get the core system prompt for LLM interactions
-   * 
+   *
    * Returns the carefully crafted prompt that establishes SQL generation
    * rules and best practices for the LLM.
-   * 
+   *
    * @returns System prompt string
    */
   buildSystemPrompt(): string {
@@ -577,10 +589,10 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Extract literal values from AST nodes
-   * 
+   *
    * Handles various TypeScript literal types including strings, numbers,
    * booleans, and null values.
-   * 
+   *
    * @param node - AST node representing a literal value
    * @returns Extracted JavaScript value
    * @private
@@ -588,11 +600,15 @@ Generate optimized, valid SQL queries compatible with the database type.`;
   private extractLiteralValue(node: any): any {
     if (Node.isStringLiteral(node)) {
       return node.getLiteralValue();
-    } else if (Node.isNumericLiteral(node)) {
+    }
+    if (Node.isNumericLiteral(node)) {
       return node.getLiteralValue();
-    } else if (node.getKind() === 109 || node.getKind() === 94) { // TrueKeyword or FalseKeyword
-      return node.getText() === 'true';
-    } else if (Node.isNullLiteral(node)) {
+    }
+    if (node.getKind() === 109 || node.getKind() === 94) {
+      // TrueKeyword or FalseKeyword
+      return node.getText() === "true";
+    }
+    if (Node.isNullLiteral(node)) {
       return null;
     }
     return node.getText();
@@ -600,14 +616,14 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Extract the actual database column name from Drizzle column definition
-   * 
+   *
    * Many Drizzle column types accept a column name as their first argument,
    * which may differ from the TypeScript property name.
-   * 
+   *
    * @param callExpr - Column definition call expression
    * @returns Database column name or null if not specified
    * @private
-   * 
+   *
    * @example
    * For: `createdAt: timestamp('created_at')`
    * Returns: 'created_at'
@@ -630,17 +646,17 @@ Generate optimized, valid SQL queries compatible with the database type.`;
 
   /**
    * Format schema information for LLM consumption
-   * 
+   *
    * Creates a comprehensive, structured representation of the database schema
    * optimized for LLM understanding. Includes:
    * - Table and column names with types
    * - Constraints and relationships
    * - Default values and enum options
    * - Mapping between TypeScript properties and database columns
-   * 
+   *
    * @param schema - Complete schema information
    * @returns Formatted schema string for LLM prompts
-   * 
+   *
    * @example
    * ```typescript
    * const formatted = analyzer.formatSchemaForLLM(schema);
@@ -648,63 +664,63 @@ Generate optimized, valid SQL queries compatible with the database type.`;
    * ```
    */
   formatSchemaForLLM(schema: SchemaInfo): string {
-    let result = 'Database Schema:\n\n';
-    
+    let result = "Database Schema:\n\n";
+
     for (const table of schema.tables) {
       result += `Table: ${table.name}\n`;
-      result += 'Columns:\n';
-      
+      result += "Columns:\n";
+
       for (const col of table.columns) {
         // Show DB column name if different from property name
         const dbName = col.dbName || col.name;
         result += `  - ${dbName}: ${col.type}`;
-        
+
         // Add column attributes
-        if (!col.nullable) result += ' NOT NULL';
+        if (!col.nullable) result += " NOT NULL";
         if (col.defaultValue) {
-          if (typeof col.defaultValue === 'string' && col.defaultValue.includes('()')) {
+          if (typeof col.defaultValue === "string" && col.defaultValue.includes("()")) {
             result += ` DEFAULT ${col.defaultValue}`;
           } else {
             result += ` DEFAULT ${JSON.stringify(col.defaultValue)}`;
           }
         }
         if (col.enumValues && col.enumValues.length > 0) {
-          result += ` ENUM(${col.enumValues.map(v => `'${v}'`).join(', ')})`;
+          result += ` ENUM(${col.enumValues.map((v) => `'${v}'`).join(", ")})`;
         }
         if (col.constraints && col.constraints.length > 0) {
-          result += ` [${col.constraints.join(', ')}]`;
+          result += ` [${col.constraints.join(", ")}]`;
         }
         if (col.references) {
           result += ` REFERENCES ${col.references.table}(${col.references.column})`;
         }
-        
+
         // Show property name mapping if different
         if (dbName !== col.name) {
           result += ` -- Drizzle property: ${col.name}`;
         }
-        
-        result += '\n';
+
+        result += "\n";
       }
-      
+
       if (table.primaryKey && table.primaryKey.length > 0) {
-        result += `  PRIMARY KEY: ${table.primaryKey.join(', ')}\n`;
+        result += `  PRIMARY KEY: ${table.primaryKey.join(", ")}\n`;
       }
-      
-      result += '\n';
+
+      result += "\n";
     }
-    
+
     return result;
   }
 
   /**
    * Format schema in compact form for quick reference
-   * 
+   *
    * Creates a condensed schema representation showing just table names
    * and column names, useful for table selection prompts.
-   * 
+   *
    * @param schema - Schema information to format
    * @returns Compact schema string
-   * 
+   *
    * @example
    * ```typescript
    * const compact = analyzer.formatSchemaCompact(schema);
@@ -712,21 +728,23 @@ Generate optimized, valid SQL queries compatible with the database type.`;
    * ```
    */
   formatSchemaCompact(schema: SchemaInfo): string {
-    let result = 'Tables and columns:\n';
-    
+    let result = "Tables and columns:\n";
+
     for (const table of schema.tables) {
-      const columns = table.columns.map(col => {
-        const dbName = col.dbName || col.name;
-        let colStr = dbName;
-        if (col.enumValues && col.enumValues.length > 0) {
-          colStr += `(${col.enumValues.join('|')})`;
-        }
-        return colStr;
-      }).join(', ');
-      
+      const columns = table.columns
+        .map((col) => {
+          const dbName = col.dbName || col.name;
+          let colStr = dbName;
+          if (col.enumValues && col.enumValues.length > 0) {
+            colStr += `(${col.enumValues.join("|")})`;
+          }
+          return colStr;
+        })
+        .join(", ");
+
       result += `${table.name}(${columns})\n`;
     }
-    
+
     return result;
   }
 }

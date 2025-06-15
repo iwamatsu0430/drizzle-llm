@@ -1,12 +1,16 @@
-import { createHash } from 'crypto';
+import { createHash } from "crypto";
 
 /**
  * Generate a query ID using the same logic as build-time
  * This ensures consistency between build and runtime
  */
-export function generateQueryId(intent: string, params?: Record<string, any>, location?: any): string {
+export function generateQueryId(
+  intent: string,
+  params?: Record<string, unknown>,
+  location?: { file: string; line: number; column: number }
+): string {
   const content = JSON.stringify({ intent, params, location });
-  return createHash('md5').update(content).digest('hex');
+  return createHash("md5").update(content).digest("hex");
 }
 
 /**
@@ -17,5 +21,5 @@ export function generateRuntimeQueryId(intentPattern: string): string {
   // For runtime, we don't have location info, so we use undefined
   // params are undefined for simple pattern matching
   const content = JSON.stringify({ intent: intentPattern, params: undefined, location: undefined });
-  return createHash('md5').update(content).digest('hex');
+  return createHash("md5").update(content).digest("hex");
 }

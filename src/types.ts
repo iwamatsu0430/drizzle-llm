@@ -1,6 +1,6 @@
 /**
  * Configuration for Drizzle LLM plugin
- * 
+ *
  * This configuration object controls all aspects of the LLM query generation process,
  * from provider settings to file paths and caching behavior.
  */
@@ -8,7 +8,7 @@ export interface DrizzleLLMConfig {
   /** LLM provider configuration */
   provider: {
     /** LLM provider type - currently supports OpenAI and Anthropic */
-    type: 'openai' | 'anthropic';
+    type: "openai" | "anthropic";
     /** API key for the LLM provider */
     apiKey: string;
     /** Optional model name (e.g., 'gpt-4', 'claude-3-sonnet') */
@@ -16,9 +16,9 @@ export interface DrizzleLLMConfig {
   };
   /** File path configuration */
   paths: {
-    /** 
+    /**
      * Path to Drizzle schema file or directory
-     * 
+     *
      * Supports:
      * - Single file: './src/db/schema.ts'
      * - Directory with barrel file: './src/schema' (uses index.ts)
@@ -59,7 +59,7 @@ export interface DrizzleLLMConfig {
 
 /**
  * Query collected from source code analysis
- * 
+ *
  * Represents a db.llm() call found during AST parsing, containing all
  * information needed to generate the corresponding SQL query.
  */
@@ -69,7 +69,7 @@ export interface CollectedQuery {
   /** Natural language intent describing the desired query */
   intent: string;
   /** Optional parameters extracted from the db.llm() call */
-  params?: Record<string, any>;
+  params?: Record<string, unknown>;
   /** Optional TypeScript return type annotation */
   returnType?: string;
   /** Source code location information */
@@ -92,7 +92,7 @@ export interface CollectedQuery {
 
 /**
  * Generated SQL query with metadata and validation results
- * 
+ *
  * Represents the final output of the LLM generation process, including
  * the generated SQL, validation results, and all metadata needed for runtime execution.
  */
@@ -138,7 +138,7 @@ export interface ColumnInfo {
   dbName?: string; // Actual database column name (e.g., 'created_at' for 'createdAt')
   type: string;
   nullable?: boolean;
-  defaultValue?: any;
+  defaultValue?: string | number | boolean | null;
   enumValues?: string[];
   constraints?: string[];
   references?: {
@@ -155,7 +155,7 @@ export interface RelationInfo {
   referencedTable: string;
   columns: string[];
   referencedColumns: string[];
-  type: 'one-to-one' | 'one-to-many' | 'many-to-many';
+  type: "one-to-one" | "one-to-many" | "many-to-many";
 }
 
 /**

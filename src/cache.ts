@@ -1,7 +1,15 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync, rmSync } from 'fs';
-import { join } from 'path';
-import { createHash } from 'crypto';
-import { GeneratedQuery, CacheEntry } from './types';
+import { createHash } from "crypto";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "fs";
+import { join } from "path";
+import type { CacheEntry, GeneratedQuery } from "./types";
 
 /**
  * File-based cache for storing generated queries to avoid redundant LLM calls
@@ -10,7 +18,7 @@ export class QueryCache {
   private cacheDir: string;
   private enabled: boolean;
 
-  constructor(cacheDir: string, enabled: boolean = true) {
+  constructor(cacheDir: string, enabled = true) {
     this.cacheDir = cacheDir;
     this.enabled = enabled;
 
@@ -24,7 +32,7 @@ export class QueryCache {
    */
   private generateCacheKey(queryId: string, intent: string): string {
     const content = JSON.stringify({ queryId, intent });
-    return createHash('sha256').update(content).digest('hex');
+    return createHash("sha256").update(content).digest("hex");
   }
 
   /**
@@ -63,7 +71,7 @@ export class QueryCache {
     }
 
     try {
-      const data = readFileSync(cacheFile, 'utf-8');
+      const data = readFileSync(cacheFile, "utf-8");
       const cacheEntry: CacheEntry = JSON.parse(data);
       return cacheEntry.query;
     } catch (error) {
@@ -90,7 +98,7 @@ export class QueryCache {
     };
 
     try {
-      writeFileSync(cacheFile, JSON.stringify(cacheEntry, null, 2), 'utf-8');
+      writeFileSync(cacheFile, JSON.stringify(cacheEntry, null, 2), "utf-8");
     } catch (error) {
       console.warn(`Failed to write cache file ${cacheFile}:`, error);
     }
@@ -117,11 +125,11 @@ export class QueryCache {
    */
   getStats(): { totalEntries: number; cacheSize: string } {
     if (!this.enabled || !existsSync(this.cacheDir)) {
-      return { totalEntries: 0, cacheSize: '0 B' };
+      return { totalEntries: 0, cacheSize: "0 B" };
     }
 
     try {
-      const files = readdirSync(this.cacheDir).filter(f => f.endsWith('.json'));
+      const files = readdirSync(this.cacheDir).filter((f) => f.endsWith(".json"));
       const totalEntries = files.length;
 
       let totalSize = 0;
@@ -135,8 +143,8 @@ export class QueryCache {
 
       return { totalEntries, cacheSize };
     } catch (error) {
-      console.warn(`Failed to get cache stats:`, error);
-      return { totalEntries: 0, cacheSize: '0 B' };
+      console.warn("Failed to get cache stats:", error);
+      return { totalEntries: 0, cacheSize: "0 B" };
     }
   }
 
@@ -144,12 +152,12 @@ export class QueryCache {
    * Format bytes to human readable string
    */
   private formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
 
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
   }
 }
