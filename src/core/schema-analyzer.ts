@@ -29,12 +29,12 @@ export class SchemaAnalyzer {
    * - Common naming pattern translations
    * - Output format requirements
    */
-  private static readonly CORE_PROMPT = `You are a SQL query generator for Drizzle ORM with PostgreSQL.
+  private static readonly CORE_PROMPT = `You are a SQL query generator for Drizzle ORM.
 
 CRITICAL RULES:
 1. Use EXACT database column names as shown in the schema (e.g., created_at, NOT createdAt)
 2. Table and column names are case-sensitive
-3. Use parameterized queries with $1, $2, etc. for dynamic values
+3. Use parameterized queries with ? for dynamic values in SQLite, or $1, $2, etc. for PostgreSQL
 4. Return ONLY the SQL query without explanation or comments
 5. Do NOT use column aliases unless necessary for clarity
 6. Never include markdown formatting or code blocks
@@ -45,7 +45,7 @@ Common naming patterns:
 - JavaScript property 'userId' → DB column 'user_id'
 - JavaScript property 'isActive' → DB column 'is_active'
 
-Generate optimized, valid PostgreSQL queries.`;
+Generate optimized, valid SQL queries compatible with the database type.`;
   private project: Project;
 
   /**
@@ -101,6 +101,133 @@ Generate optimized, valid PostgreSQL queries.`;
   }
 
   /**
+   * Analyze multiple schema files or directories for schema information
+   * 
+   * This method supports:
+   * - Single file paths: './src/schema/user.ts'
+   * - Directory paths: './src/schema' (looks for index.ts barrel file)
+   * - Directory paths with auto-discovery: './src/schema' (scans all .ts files if no index.ts)
+   * 
+   * @param schemaPath - Path to schema file or directory
+   * @returns Complete schema information from all discovered files
+   */
+  async analyzeSchemaPath(schemaPath: string): Promise<SchemaInfo> {
+    const { existsSync, statSync } = await import('fs');
+    const { resolve, join } = await import('path');
+    const { glob } = await import('glob');
+    
+    const fullPath = resolve(schemaPath);
+    
+    if (!existsSync(fullPath)) {
+      throw new Error(`Schema path does not exist: ${schemaPath}`);
+    }
+    
+    const stats = statSync(fullPath);
+    const allTables: TableInfo[] = [];
+    const allRelations: RelationInfo[] = [];
+    
+    if (stats.isFile()) {
+      // Single file - analyze directly
+      const schema = this.analyzeSchema(fullPath);
+      allTables.push(...schema.tables);
+      allRelations.push(...schema.relations);
+    } else if (stats.isDirectory()) {
+      // Directory - check for barrel file first, then auto-discover
+      const indexPath = join(fullPath, 'index.ts');
+      
+      if (existsSync(indexPath)) {
+        // Barrel file exists - analyze it and follow its re-exports
+        const schema = await this.analyzeSchemaWithReExports(indexPath, fullPath);
+        allTables.push(...schema.tables);
+        allRelations.push(...schema.relations);
+      } else {
+        // No barrel file - scan for all .ts files in the directory
+        const pattern = join(fullPath, '**/*.ts');
+        const files = await glob(pattern, { 
+          ignore: ['**/*.test.ts', '**/*.spec.ts', '**/node_modules/**']
+        });
+        
+        for (const file of files) {
+          try {
+            const schema = this.analyzeSchema(resolve(file));
+            allTables.push(...schema.tables);
+            allRelations.push(...schema.relations);
+          } catch (error) {
+            console.warn(`Warning: Failed to analyze schema file ${file}:`, error);
+            // Continue with other files
+          }
+        }
+      }
+    }
+    
+    if (allTables.length === 0) {
+      console.warn(`Warning: No tables found in schema path: ${schemaPath}`);
+    }
+    
+    return {
+      tables: allTables,
+      relations: allRelations,
+    };
+  }
+
+  /**
+   * Analyze a barrel file and follow its re-exports to find schema definitions
+   * 
+   * This method analyzes a barrel file (typically index.ts) that re-exports
+   * schema definitions from other files. It follows the export statements
+   * to analyze the actual schema files.
+   * 
+   * @param barrelFilePath - Path to the barrel file (e.g., index.ts)
+   * @param baseDirectory - Base directory containing the schema files
+   * @returns Complete schema information from all re-exported files
+   * @private
+   */
+  private async analyzeSchemaWithReExports(barrelFilePath: string, baseDirectory: string): Promise<SchemaInfo> {
+    const { resolve, join, dirname } = await import('path');
+    const sourceFile = this.project.addSourceFileAtPath(barrelFilePath);
+    const allTables: TableInfo[] = [];
+    const allRelations: RelationInfo[] = [];
+    
+    // First, check if the barrel file itself contains any table definitions
+    const directSchema = this.analyzeSchema(barrelFilePath);
+    allTables.push(...directSchema.tables);
+    allRelations.push(...directSchema.relations);
+    
+    // Then, follow re-exports
+    const exportDeclarations = sourceFile.getExportDeclarations();
+    
+    exportDeclarations.forEach((exportDecl) => {
+      const moduleSpecifier = exportDecl.getModuleSpecifierValue();
+      
+      if (moduleSpecifier) {
+        // Resolve relative imports
+        let targetPath: string;
+        if (moduleSpecifier.startsWith('./') || moduleSpecifier.startsWith('../')) {
+          // Relative import - resolve relative to the barrel file
+          const barrelDir = dirname(barrelFilePath);
+          targetPath = resolve(barrelDir, moduleSpecifier + '.ts');
+        } else {
+          // Could be a path within the same directory
+          targetPath = join(baseDirectory, moduleSpecifier + '.ts');
+        }
+        
+        try {
+          const reExportedSchema = this.analyzeSchema(targetPath);
+          allTables.push(...reExportedSchema.tables);
+          allRelations.push(...reExportedSchema.relations);
+        } catch (error) {
+          console.warn(`Warning: Failed to analyze re-exported file ${targetPath}:`, error);
+        }
+      }
+    });
+    
+    return {
+      tables: allTables,
+      relations: allRelations,
+    };
+  }
+
+  /**
    * Extract table information from a variable declaration node
    * 
    * Identifies pgTable() or table() function calls and extracts:
@@ -132,7 +259,7 @@ Generate optimized, valid PostgreSQL queries.`;
     }
 
     // Check for Drizzle table functions
-    if (functionName !== 'pgTable' && functionName !== 'table') {
+    if (functionName !== 'pgTable' && functionName !== 'table' && functionName !== 'sqliteTable' && functionName !== 'mysqlTable') {
       return null;
     }
 

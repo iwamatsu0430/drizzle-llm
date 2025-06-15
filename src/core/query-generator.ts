@@ -34,15 +34,18 @@ interface ChatProvider {
 export class OpenAIProvider implements LLMProvider {
   private client: OpenAI;
   private model: string;
+  private config?: DrizzleLLMConfig;
 
   /**
    * Create a new OpenAI provider
    * @param apiKey - OpenAI API key
    * @param model - Model name (default: 'gpt-4')
+   * @param config - Optional full configuration for debug settings
    */
-  constructor(apiKey: string, model: string = 'gpt-4') {
+  constructor(apiKey: string, model: string = 'gpt-4', config?: DrizzleLLMConfig) {
     this.client = new OpenAI({ apiKey });
     this.model = model;
+    this.config = config;
   }
 
   async generateQuery(_prompt: string, _schema: SchemaInfo): Promise<LLMResponse> {
@@ -62,6 +65,17 @@ export class OpenAIProvider implements LLMProvider {
    * @throws {Error} When API call fails or returns empty response
    */
   async chat(messages: ChatMessage[]): Promise<string> {
+    const debug = this.config?.debug;
+    
+    if (debug?.logPrompts || debug?.verbose) {
+      console.log('\n🔵 OpenAI Request:');
+      console.log('Model:', this.model);
+      console.log('Messages:');
+      messages.forEach((msg, i) => {
+        console.log(`  [${i}] ${msg.role}:`, msg.content.substring(0, 200) + (msg.content.length > 200 ? '...' : ''));
+      });
+    }
+
     const response = await this.client.chat.completions.create({
       model: this.model,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
@@ -72,6 +86,21 @@ export class OpenAIProvider implements LLMProvider {
     const content = response.choices[0]?.message?.content;
     if (!content) {
       throw new Error('No response from OpenAI');
+    }
+
+    if (debug?.logResponses || debug?.verbose) {
+      console.log('\n🟢 OpenAI Response:');
+      console.log(content);
+    }
+
+    if (debug?.logTokenUsage || debug?.verbose) {
+      const usage = response.usage;
+      if (usage) {
+        console.log('\n📊 Token Usage:');
+        console.log(`  Input: ${usage.prompt_tokens}`);
+        console.log(`  Output: ${usage.completion_tokens}`);
+        console.log(`  Total: ${usage.total_tokens}`);
+      }
     }
 
     return content.trim();
@@ -87,15 +116,18 @@ export class OpenAIProvider implements LLMProvider {
 export class AnthropicProvider implements LLMProvider {
   private client: Anthropic;
   private model: string;
+  private config?: DrizzleLLMConfig;
 
   /**
    * Create a new Anthropic provider
    * @param apiKey - Anthropic API key
    * @param model - Model name (default: 'claude-3-sonnet-20240229')
+   * @param config - Optional full configuration for debug settings
    */
-  constructor(apiKey: string, model: string = 'claude-3-sonnet-20240229') {
+  constructor(apiKey: string, model: string = 'claude-3-sonnet-20240229', config?: DrizzleLLMConfig) {
     this.client = new Anthropic({ apiKey });
     this.model = model;
+    this.config = config;
   }
 
   async generateQuery(_prompt: string, _schema: SchemaInfo): Promise<LLMResponse> {
@@ -114,8 +146,21 @@ export class AnthropicProvider implements LLMProvider {
    * @throws {Error} When API call fails or returns invalid response
    */
   async chat(messages: ChatMessage[]): Promise<string> {
+    const debug = this.config?.debug;
     const systemMessage = messages.find(m => m.role === 'system');
     const userMessages = messages.filter(m => m.role !== 'system');
+
+    if (debug?.logPrompts || debug?.verbose) {
+      console.log('\n🔵 Anthropic Request:');
+      console.log('Model:', this.model);
+      if (systemMessage) {
+        console.log('System:', systemMessage.content.substring(0, 200) + (systemMessage.content.length > 200 ? '...' : ''));
+      }
+      console.log('Messages:');
+      userMessages.forEach((msg, i) => {
+        console.log(`  [${i}] ${msg.role}:`, msg.content.substring(0, 200) + (msg.content.length > 200 ? '...' : ''));
+      });
+    }
 
     const response = await this.client.messages.create({
       model: this.model,
@@ -130,6 +175,21 @@ export class AnthropicProvider implements LLMProvider {
     const content = response.content[0];
     if (content.type !== 'text') {
       throw new Error('Invalid response from Anthropic');
+    }
+
+    if (debug?.logResponses || debug?.verbose) {
+      console.log('\n🟢 Anthropic Response:');
+      console.log(content.text);
+    }
+
+    if (debug?.logTokenUsage || debug?.verbose) {
+      const usage = response.usage;
+      if (usage) {
+        console.log('\n📊 Token Usage:');
+        console.log(`  Input: ${usage.input_tokens}`);
+        console.log(`  Output: ${usage.output_tokens}`);
+        console.log(`  Total: ${usage.input_tokens + usage.output_tokens}`);
+      }
     }
 
     return content.text.trim();
@@ -168,9 +228,9 @@ export class ConversationalQueryGenerator {
    */
   constructor(config: DrizzleLLMConfig) {
     if (config.provider.type === 'openai') {
-      this.provider = new OpenAIProvider(config.provider.apiKey, config.provider.model);
+      this.provider = new OpenAIProvider(config.provider.apiKey, config.provider.model, config);
     } else if (config.provider.type === 'anthropic') {
-      this.provider = new AnthropicProvider(config.provider.apiKey, config.provider.model);
+      this.provider = new AnthropicProvider(config.provider.apiKey, config.provider.model, config);
     } else {
       throw new Error(`Unsupported provider type: ${config.provider.type}`);
     }

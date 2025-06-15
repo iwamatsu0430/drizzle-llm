@@ -16,10 +16,15 @@ export interface DrizzleLLMConfig {
   };
   /** File path configuration */
   paths: {
-    /** Path to Drizzle schema file (e.g., './src/db/schema.ts') */
+    /** 
+     * Path to Drizzle schema file or directory
+     * 
+     * Supports:
+     * - Single file: './src/db/schema.ts'
+     * - Directory with barrel file: './src/schema' (uses index.ts)
+     * - Directory auto-discovery: './src/schema' (scans all .ts files if no index.ts)
+     */
     schema: string;
-    /** Path where generated queries will be written (e.g., './src/generated/queries.ts') */
-    output: string;
     /** Path(s) to scan for db.llm() calls - supports glob patterns */
     queries: string | string[];
   };
@@ -29,6 +34,26 @@ export interface DrizzleLLMConfig {
     enabled: boolean;
     /** Directory to store cache files */
     directory: string;
+  };
+  /** Optional output configuration for generated files */
+  output?: {
+    /** Whether to generate .sql files alongside source files (default: true) */
+    generateSqlFiles?: boolean;
+    /** Whether to generate distributed .query.ts files (default: true) */
+    generateQueryFiles?: boolean;
+  };
+  /** Optional debug configuration */
+  debug?: {
+    /** Enable verbose logging */
+    verbose?: boolean;
+    /** Log LLM prompts sent to the provider */
+    logPrompts?: boolean;
+    /** Log LLM responses received from the provider */
+    logResponses?: boolean;
+    /** Log token usage for each query */
+    logTokenUsage?: boolean;
+    /** Output debug logs to a file */
+    logFile?: string;
   };
 }
 
@@ -79,10 +104,6 @@ export interface GeneratedQuery {
   returnType: string;
   /** Hash of the query content for change detection */
   hash: string;
-  /** Whether the query passed validation (undefined means not validated) */
-  isValid?: boolean;
-  /** Array of validation error messages if validation failed */
-  validationErrors?: string[];
   /** Source file path for distributed query generation */
   sourceFile?: string;
 }

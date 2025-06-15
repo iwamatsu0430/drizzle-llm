@@ -1,17 +1,22 @@
-import { Project, CallExpression, Node } from 'ts-morph';
-import { createHash } from 'crypto';
+import { Project, CallExpression, Node, TaggedTemplateExpression } from 'ts-morph';
 import { CollectedQuery } from '../types';
+import { generateQueryId } from '../utils/hash.js';
 
 /**
- * AST parser for extracting db.llm() calls from TypeScript source code
+ * AST parser for extracting LLM query calls from TypeScript source code
  * 
  * This class uses ts-morph to parse TypeScript files and identify natural language
- * query intents written using the db.llm() method. It extracts the intent string,
- * parameters, return types, and source location information needed for SQL generation.
+ * query intents written using either:
+ * - Method calls: db.llm() or llmDB.llm()
+ * - Template literals: llm`natural language query`
+ * 
+ * It extracts the intent string, parameters, return types, and source location 
+ * information needed for SQL generation.
  * 
  * Features:
  * - Robust AST parsing using TypeScript compiler API
  * - Supports both db.llm() and llmDB.llm() call patterns
+ * - Supports llm`` template literal syntax
  * - Extracts typed parameters and return type annotations
  * - Generates unique query IDs for change tracking
  * - Preserves source location for debugging
@@ -34,10 +39,13 @@ export class QueryParser {
   }
 
   /**
-   * Collect all db.llm() queries from the specified source files
+   * Collect all LLM queries from the specified source files
    * 
-   * Parses each file using AST analysis to find db.llm() call expressions,
-   * extracts their parameters and metadata, and returns a comprehensive list
+   * Parses each file using AST analysis to find:
+   * - db.llm() or llmDB.llm() call expressions
+   * - llm`` tagged template literals
+   * 
+   * Extracts their parameters and metadata, and returns a comprehensive list
    * of queries that need SQL generation.
    * 
    * @param filePaths - Array of absolute file paths to analyze
@@ -57,9 +65,20 @@ export class QueryParser {
       const sourceFile = this.project.addSourceFileAtPath(filePath);
       
       sourceFile.forEachDescendant((node) => {
+        // Check for method calls: db.llm() or llmDB.llm()
         if (Node.isCallExpression(node)) {
           if (this.isDBLLMCall(node)) {
             const query = this.extractQueryInfo(node, filePath);
+            if (query) {
+              queries.push(query);
+            }
+          }
+        }
+        
+        // Check for template literals: llm`...`
+        if (Node.isTaggedTemplateExpression(node)) {
+          if (this.isLLMTemplateTag(node)) {
+            const query = this.extractTemplateQueryInfo(node, filePath);
             if (query) {
               queries.push(query);
             }
@@ -249,9 +268,8 @@ export class QueryParser {
   /**
    * Generate a unique identifier for a query based on its content
    * 
-   * Creates an MD5 hash from the intent, parameters, and location to create
-   * a stable identifier that changes when the query changes. This is used for
-   * change detection and caching.
+   * Uses the shared hash generation logic to ensure consistency between
+   * build-time and runtime.
    * 
    * @param intent - Natural language intent string
    * @param params - Parameter object (if any)
@@ -261,7 +279,177 @@ export class QueryParser {
    * @private
    */
   private generateQueryId(intent: string, params: Record<string, any> | undefined, location: any): string {
-    const content = JSON.stringify({ intent, params, location });
-    return createHash('md5').update(content).digest('hex');
+    return generateQueryId(intent, params, location);
+  }
+
+  /**
+   * Check if a TaggedTemplateExpression node represents an llm`` template tag
+   * 
+   * @param node - TaggedTemplateExpression AST node to check
+   * @returns True if the node is an llm template tag
+   * 
+   * @private
+   */
+  private isLLMTemplateTag(node: TaggedTemplateExpression): boolean {
+    const tag = node.getTag();
+    return Node.isIdentifier(tag) && tag.getText() === 'llm';
+  }
+
+  /**
+   * Extract query information from an llm`` template literal
+   * 
+   * Parses the AST node to extract:
+   * - Intent string from the template literal
+   * - Any interpolated values as parameters
+   * - Return type from TypeScript annotations
+   * - Source location for debugging
+   * 
+   * @param node - TaggedTemplateExpression AST node
+   * @param filePath - Absolute path to the source file
+   * @returns CollectedQuery object or null if extraction fails
+   * 
+   * @private
+   */
+  private extractTemplateQueryInfo(node: TaggedTemplateExpression, filePath: string): CollectedQuery | null {
+    const template = node.getTemplate();
+    let intent = '';
+    let params: Record<string, any> = {};
+    
+    if (Node.isNoSubstitutionTemplateLiteral(template)) {
+      // Simple case: llm`Get all users`
+      intent = template.getLiteralValue();
+    } else if (Node.isTemplateExpression(template)) {
+      // Complex case: llm`Get user with id ${userId}`
+      const head = template.getHead();
+      const spans = template.getTemplateSpans();
+      
+      // Get the head text without backticks and ${
+      let headText = head.getText();
+      if (headText.startsWith('`')) {
+        headText = headText.slice(1);
+      }
+      // Remove trailing ${ if present (part of template interpolation syntax)
+      if (headText.endsWith('${')) {
+        headText = headText.slice(0, -2);
+      }
+      intent = headText;
+      
+      let paramIndex = 0;
+      
+      spans.forEach((span) => {
+        const expression = span.getExpression();
+        const literal = span.getLiteral();
+        
+        // Add placeholder for the parameter
+        intent += `\${${paramIndex}}`;
+        
+        // Get the literal text without template syntax delimiters
+        let literalText = literal.getText();
+        
+        // For TemplateMiddle or TemplateTail, we need to remove the delimiters
+        // Handle different TypeScript version kind numbers
+        if (literal.getKind() === 218 || literal.getKind() === 18) { // TemplateMiddle
+          // Remove }...{
+          if (literalText.startsWith('}')) {
+            literalText = literalText.slice(1);
+          }
+          if (literalText.endsWith('{')) {
+            literalText = literalText.slice(0, -1);
+          }
+        } else if (literal.getKind() === 219 || literal.getKind() === 19) { // TemplateTail  
+          // Remove }...`
+          if (literalText.startsWith('}')) {
+            literalText = literalText.slice(1);
+          }
+          if (literalText.endsWith('`')) {
+            literalText = literalText.slice(0, -1);
+          }
+        }
+        
+        // For any template literal ending, remove } and `
+        if (literalText.startsWith('}')) {
+          literalText = literalText.slice(1);
+        }
+        if (literalText.endsWith('`')) {
+          literalText = literalText.slice(0, -1);
+        }
+        
+        intent += literalText;
+        
+        // Extract parameter value if it's a simple identifier
+        if (Node.isIdentifier(expression)) {
+          params[`param${paramIndex}`] = expression.getText();
+        } else {
+          params[`param${paramIndex}`] = expression.getText();
+        }
+        
+        paramIndex++;
+      });
+    } else {
+      return null;
+    }
+
+    const returnType = this.inferTemplateReturnType(node);
+    const location = this.getTemplateSourceLocation(node, filePath);
+    const id = this.generateQueryId(intent, Object.keys(params).length > 0 ? params : undefined, location);
+
+    return {
+      id,
+      intent,
+      params: Object.keys(params).length > 0 ? params : undefined,
+      returnType,
+      location,
+      sourceFile: filePath,
+    };
+  }
+
+  /**
+   * Infer the return type of an llm`` template literal from context
+   * 
+   * @param node - TaggedTemplateExpression AST node
+   * @returns TypeScript type string or undefined if not determinable
+   * 
+   * @private
+   */
+  private inferTemplateReturnType(node: TaggedTemplateExpression): string | undefined {
+    // Check if the template is wrapped in db.execute<T>()
+    const parent = node.getParent();
+    if (Node.isCallExpression(parent)) {
+      const typeArgs = parent.getTypeArguments();
+      if (typeArgs.length > 0) {
+        return typeArgs[0].getText();
+      }
+    }
+    
+    // Check for variable declaration type
+    const varDeclaration = node.getFirstAncestorByKind(384 as any); // SyntaxKind.VariableDeclaration
+    if (varDeclaration && Node.isVariableDeclaration(varDeclaration)) {
+      const typeNode = varDeclaration.getTypeNode();
+      if (typeNode) {
+        return typeNode.getText();
+      }
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Get the source location of an llm`` template literal
+   * 
+   * @param node - TaggedTemplateExpression AST node
+   * @param filePath - Absolute path to the source file
+   * @returns Object with file path, line number, and column number
+   * 
+   * @private
+   */
+  private getTemplateSourceLocation(node: TaggedTemplateExpression, filePath: string) {
+    const sourceFile = node.getSourceFile();
+    const lineAndColumn = sourceFile.getLineAndColumnAtPos(node.getStart());
+    
+    return {
+      file: filePath,
+      line: lineAndColumn.line,
+      column: lineAndColumn.column,
+    };
   }
 }

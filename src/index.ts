@@ -1,8 +1,9 @@
+// Vite plugin export
 export { drizzleLLM } from './plugin.js';
-export { QueryParser } from './core/ast-parser.js';
-export { SchemaAnalyzer } from './core/schema-analyzer.js';
-export { QueryGenerator, OpenAIProvider, AnthropicProvider } from './core/query-generator.js';
-export { QueryCache, createQueryCache } from './utils/cache.js';
-export { QueryValidator, ValidationResult, ValidationError, ValidationWarning } from './core/query-validator.js';
+
+// Runtime exports
+export { llm, llmPlaceholder, createLLMTag, registerQueries } from './runtime/index.js';
+export type { GeneratedQuery, GeneratedQueryConfig } from './runtime/index.js';
+
+// Type definitions
 export * from './types.js';
-export * from './runtime/index.js';

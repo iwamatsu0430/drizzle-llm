@@ -1,2 +1,3 @@
-export { DrizzleLLMClient, QueryExecutor, LLMExtension, createLLMExtension, extendDrizzle, extendDrizzleFromDistributed } from './client.js';
-export type { QueryExecutor as IQueryExecutor } from './client.js';
+// Template tag exports
+export { llm, llmPlaceholder, createLLMTag, registerQueries } from './template-tag.js';
+export type { GeneratedQuery, GeneratedQueryConfig } from './template-tag.js';
