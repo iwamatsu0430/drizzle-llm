@@ -22,6 +22,12 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
+    - name: Install root dependencies
+      run: npm ci
+
+    - name: Build TypeScript package
+      run: npx tsc
+
     - name: Install example dependencies
       run: npm ci
       working-directory: ./example
