@@ -81,6 +81,11 @@ export interface CollectedQuery {
     /** Column number in the source file */
     column: number;
   };
+  /** Database method information (get/all) for result expectation */
+  methodInfo?: {
+    method: string;
+    expectsMultiple: boolean;
+  };
   /** Source file path (used for distributed query generation) */
   sourceFile?: string;
 }

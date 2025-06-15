@@ -158,6 +158,7 @@ export class QueryParser {
     }
 
     const returnType = this.inferReturnType(node);
+    const methodInfo = this.extractMethodInfo(node);
     const location = this.getSourceLocation(node, filePath);
     
     const id = this.generateQueryId(intent, params, location);
@@ -167,6 +168,7 @@ export class QueryParser {
       intent,
       params,
       returnType,
+      methodInfo,
       location,
       sourceFile: filePath,
     };
@@ -214,7 +216,8 @@ export class QueryParser {
    * Attempts to determine the expected return type by checking:
    * 1. Generic type arguments: db.llm<User>(...)
    * 2. Variable declaration type annotations
-   * 3. Other contextual type information
+   * 3. Function return type annotations
+   * 4. Other contextual type information
    * 
    * @param node - CallExpression AST node
    * @returns TypeScript type string or undefined if not determinable
@@ -224,13 +227,16 @@ export class QueryParser {
    * @example
    * For `db.llm<User[]>('Get users')` returns 'User[]'
    * For `const users: User[] = db.llm('Get users')` returns 'User[]'
+   * For function with `Promise<User[]>` return type, returns 'User[]'
    */
   private inferReturnType(node: CallExpression): string | undefined {
+    // 1. Check generic type arguments: db.llm<User>(...)
     const typeArgs = node.getTypeArguments();
     if (typeArgs.length > 0) {
       return typeArgs[0].getText();
     }
 
+    // 2. Check variable declaration type annotations
     const parent = node.getParent();
     if (Node.isVariableDeclaration(parent)) {
       const typeNode = parent.getTypeNode();
@@ -239,6 +245,99 @@ export class QueryParser {
       }
     }
 
+    // 3. Check function return type annotations
+    const functionType = this.getFunctionReturnType(node);
+    if (functionType) {
+      return functionType;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Extract database method information (get/all) from the call chain
+   * 
+   * Analyzes the AST to determine if the llm call is within a db.get() or db.all() call,
+   * which indicates whether a single result or multiple results are expected.
+   * 
+   * @param node - CallExpression AST node
+   * @returns Method information object or undefined
+   * 
+   * @private
+   * 
+   * @example
+   * For `db.get(llm`...`)` returns { method: 'get', expectsMultiple: false }
+   * For `db.all(llm`...`)` returns { method: 'all', expectsMultiple: true }
+   */
+  private extractMethodInfo(node: CallExpression): { method: string; expectsMultiple: boolean } | undefined {
+    let current = node.getParent();
+    
+    // Walk up to find the containing method call (db.get, db.all, etc.)
+    while (current) {
+      if (Node.isCallExpression(current)) {
+        const expression = current.getExpression();
+        
+        if (Node.isPropertyAccessExpression(expression)) {
+          const methodName = expression.getName();
+          
+          // Check for common database methods
+          if (methodName === 'get') {
+            return { method: 'get', expectsMultiple: false };
+          } else if (methodName === 'all') {
+            return { method: 'all', expectsMultiple: true };
+          } else if (methodName === 'run') {
+            return { method: 'run', expectsMultiple: false };
+          }
+        }
+      }
+      current = current.getParent();
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Extract return type from function declaration containing the llm call
+   * 
+   * Walks up the AST to find the containing function and extracts its return type.
+   * Handles Promise types by unwrapping them to get the inner type.
+   * 
+   * @param node - CallExpression AST node
+   * @returns Extracted return type or undefined
+   * 
+   * @private
+   * 
+   * @example
+   * For `function getUsers(): Promise<User[]>` returns 'User[]'
+   * For `function getName(): Promise<string | null>` returns 'string | null'
+   */
+  private getFunctionReturnType(node: CallExpression): string | undefined {
+    let current = node.getParent();
+    
+    // Walk up the AST to find the containing function
+    while (current) {
+      if (Node.isFunctionDeclaration(current) || 
+          Node.isArrowFunction(current) || 
+          Node.isMethodDeclaration(current) ||
+          Node.isFunctionExpression(current)) {
+        
+        const returnTypeNode = current.getReturnTypeNode();
+        if (returnTypeNode) {
+          const returnTypeText = returnTypeNode.getText();
+          
+          // Extract inner type from Promise<T>
+          const promiseMatch = returnTypeText.match(/^Promise<(.+)>$/);
+          if (promiseMatch) {
+            return promiseMatch[1];
+          }
+          
+          return returnTypeText;
+        }
+        break;
+      }
+      current = current.getParent();
+    }
+    
     return undefined;
   }
 

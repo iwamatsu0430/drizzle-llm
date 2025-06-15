@@ -269,8 +269,7 @@ export class ConversationalQueryGenerator {
    * - Provides detailed schema for selected tables only
    * - Generates optimized SQL with proper parameter placeholders
    * 
-   * @param intent - Natural language description of the desired query
-   * @param params - Optional parameters that will be used in the query
+   * @param query - Collected query object with intent, params, return type, and method info
    * @returns Promise resolving to generated SQL string
    * @throws {Error} When schema is not initialized or generation fails after retries
    * 
@@ -278,10 +277,11 @@ export class ConversationalQueryGenerator {
    * ```typescript
    * const generator = new ConversationalQueryGenerator(config);
    * await generator.initialize(schema);
-   * const sql = await generator.generateQuery('Get active users with orders', { status: 'active' });
+   * const sql = await generator.generateQuery(collectedQuery);
    * ```
    */
-  async generateQuery(intent: string, params?: any): Promise<string> {
+  async generateQuery(query: CollectedQuery): Promise<string> {
+    const { intent, params } = query;
     if (!this.schema) {
       throw new Error('Schema not initialized');
     }
@@ -323,8 +323,10 @@ Which tables are needed for this query? List only the table names, separated by 
 
 Task: "${intent}"
 ${params ? `Parameters provided: ${JSON.stringify(params)}` : ''}
+${query.returnType ? `Expected return type: ${query.returnType}` : ''}
+${query.methodInfo ? `Database method: ${query.methodInfo.method}() - expects ${query.methodInfo.expectsMultiple ? 'multiple rows' : 'single row'}` : ''}
 
-Generate the SQL query using the EXACT database column names shown above. Use $1, $2, etc. for parameters.`
+Generate the SQL query using the EXACT database column names shown above. Use $1, $2, etc. for parameters.${query.returnType ? `\nThe query should return data compatible with the expected return type: ${query.returnType}` : ''}${query.methodInfo ? `\nNote: This query will be used with db.${query.methodInfo.method}() which expects ${query.methodInfo.expectsMultiple ? 'multiple rows (use appropriate WHERE/LIMIT clauses)' : 'a single row (use LIMIT 1 or aggregate functions)'}` : ''}`
       }
     ];
 
@@ -522,7 +524,7 @@ export class QueryGenerator {
           console.log(`📝 [${i + 1}/${queries.length}] "${query.intent.substring(0, 50)}..."`);
           const startTime = Date.now();
           
-          const sql = await generator.generateQuery(query.intent, query.params);
+          const sql = await generator.generateQuery(query);
           const parameters = this.extractParameters(sql);
           
           const generatedQuery: GeneratedQuery = {
