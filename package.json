@@ -39,7 +39,7 @@
   ],
   "dependencies": {
     "drizzle-orm": "^0.44.2",
-    "glob": "^10.3.10"
+    "glob": "^11.0.3"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "^1.0.22",
