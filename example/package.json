@@ -1,0 +1,24 @@
+{
+  "name": "drizzle-llm-example",
+  "version": "0.0.1",
+  "main": "index.ts",
+  "scripts": {
+    "build": "drizzle-llm build",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "license": "MIT",
+  "description": "An example project using drizzle-llm",
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "drizzle-llm": "file:..",
+    "drizzle-orm": "^0.44.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "tsc": "^2.0.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^1.6.0"
+  }
+}
