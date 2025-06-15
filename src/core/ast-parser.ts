@@ -200,7 +200,7 @@ export class QueryParser {
   ): Record<string, unknown> {
     const result: Record<string, unknown> = {};
 
-    node.getProperties().forEach((prop: import("ts-morph").ObjectLiteralElementLike) => {
+    for (const prop of node.getProperties()) {
       if (Node.isPropertyAssignment(prop)) {
         const name = prop.getName();
         const initializer = prop.getInitializer();
@@ -214,7 +214,7 @@ export class QueryParser {
           result[name] = initializer?.getText();
         }
       }
-    });
+    }
 
     return result;
   }
@@ -456,7 +456,7 @@ export class QueryParser {
 
       let paramIndex = 0;
 
-      spans.forEach((span) => {
+      for (const span of spans) {
         const expression = span.getExpression();
         const literal = span.getLiteral();
 
@@ -506,7 +506,7 @@ export class QueryParser {
         }
 
         paramIndex++;
-      });
+      }
     } else {
       return null;
     }

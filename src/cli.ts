@@ -75,7 +75,9 @@ async function loadConfig(): Promise<DrizzleLLMConfig> {
           );
 
           let output = "";
-          tsx.stdout?.on("data", (data) => (output += data.toString()));
+          tsx.stdout?.on("data", (data) => {
+            output += data.toString();
+          });
           tsx.stderr?.on("data", (data) => console.error(data.toString()));
           tsx.on("close", (code) => {
             if (code === 0) resolve(output.trim());

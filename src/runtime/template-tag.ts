@@ -40,7 +40,11 @@ const sqlFileCache = new Map<string, string>();
  */
 function loadSqlFromFile(queryId: string): string {
   if (sqlFileCache.has(queryId)) {
-    return sqlFileCache.get(queryId)!;
+    const cached = sqlFileCache.get(queryId);
+    if (!cached) {
+      throw new Error(`SQL file cache missing for query: ${queryId}`);
+    }
+    return cached;
   }
 
   // Find SQL files in common locations
@@ -164,7 +168,6 @@ export function createLLMTag(
     // Return as Drizzle SQL object with proper parameter binding
     // Use dynamic import to ensure we use the consumer's drizzle-orm instance
     const { sql: consumerSql } = require("drizzle-orm");
-    const { sql } = consumerSql; // Extract sql helper
 
     if (values.length > 0) {
       // SQL can have either ? placeholders (SQLite) or $1, $2, etc. (PostgreSQL)

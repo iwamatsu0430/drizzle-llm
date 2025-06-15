@@ -199,7 +199,7 @@ Generate optimized, valid SQL queries compatible with the database type.`;
     // Then, follow re-exports
     const exportDeclarations = sourceFile.getExportDeclarations();
 
-    exportDeclarations.forEach((exportDecl) => {
+    for (const exportDecl of exportDeclarations) {
       const moduleSpecifier = exportDecl.getModuleSpecifierValue();
 
       if (moduleSpecifier) {
@@ -222,7 +222,7 @@ Generate optimized, valid SQL queries compatible with the database type.`;
           console.warn(`Warning: Failed to analyze re-exported file ${targetPath}:`, error);
         }
       }
-    });
+    }
 
     return {
       tables: allTables,
@@ -311,7 +311,7 @@ Generate optimized, valid SQL queries compatible with the database type.`;
   private extractColumns(schemaNode: any): ColumnInfo[] {
     const columns: ColumnInfo[] = [];
 
-    schemaNode.getProperties().forEach((prop: any) => {
+    for (const prop of schemaNode.getProperties()) {
       if (Node.isPropertyAssignment(prop)) {
         const propertyName = prop.getName();
         const initializer = prop.getInitializer();
@@ -328,7 +328,7 @@ Generate optimized, valid SQL queries compatible with the database type.`;
           }
         }
       }
-    });
+    }
 
     return columns;
   }

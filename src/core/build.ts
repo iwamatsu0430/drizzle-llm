@@ -31,12 +31,12 @@ export async function buildQueries(config: DrizzleLLMConfig): Promise<void> {
   const schema = await schemaAnalyzer.analyzeSchemaPath(config.paths.schema);
   console.log("📋 Schema analysis result:");
   console.log("   Tables found:", schema.tables.length);
-  schema.tables.forEach((table, i) => {
+  for (const [i, table] of schema.tables.entries()) {
     console.log(`   ${i + 1}. ${table.name} (${table.columns.length} columns)`);
-    table.columns.forEach((col) => {
+    for (const col of table.columns) {
       console.log(`      - ${col.name}: ${col.type}${col.dbName ? ` (db: ${col.dbName})` : ""}`);
-    });
-  });
+    }
+  }
 
   console.log("🔍 Collecting queries...");
   const queryFiles = Array.isArray(config.paths.queries)
@@ -234,12 +234,7 @@ function categorizeQueries(
   return { validQueries, invalidQueries, changedQueries };
 }
 
-function getExistingValidQueries(
-  existingQueries: Record<string, GeneratedQuery>,
-  validQueries: CollectedQuery[]
-): GeneratedQuery[] {
-  return validQueries.map((query) => existingQueries[query.id]).filter(Boolean);
-}
+// Unused function removed to fix lint error
 
 async function writeDistributedQueryFiles(
   queries: GeneratedQuery[],
@@ -281,11 +276,11 @@ function generateDistributedQueryFile(queries: GeneratedQuery[], sourceFile: str
   const camelCaseName = camelCase(fileName.replace(/-/g, "_"));
 
   const usedTypes = new Set<string>();
-  queries.forEach((query) => {
+  for (const query of queries) {
     if (query.returnType && query.returnType !== "any") {
       usedTypes.add(query.returnType);
     }
-  });
+  }
 
   // Filter out TypeScript built-in types
   const builtInTypes = new Set([

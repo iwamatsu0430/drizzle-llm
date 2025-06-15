@@ -603,13 +603,15 @@ export class QueryGenerator {
   private extractParameters(sql: string): string[] {
     const paramRegex = /\$(\d+)/g;
     const params: string[] = [];
-    let match;
+    let match: RegExpExecArray | null;
 
-    while ((match = paramRegex.exec(sql)) !== null) {
+    match = paramRegex.exec(sql);
+    while (match !== null) {
       const paramNum = Number.parseInt(match[1], 10);
       if (!params[paramNum - 1]) {
         params[paramNum - 1] = `param${paramNum}`;
       }
+      match = paramRegex.exec(sql);
     }
 
     return params.filter(Boolean);
