@@ -1,0 +1,31 @@
+name: Example Project
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  example:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install example dependencies
+      run: npm ci
+      working-directory: ./example
+
+    - name: Run example tests
+      run: npm run test:run
+      working-directory: ./example
