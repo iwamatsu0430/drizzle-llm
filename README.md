@@ -32,10 +32,19 @@ export default {
 // src/user.ts
 import { llm } from "drizzle-llm";
 
-export async function getUser(db: any, id: string) {
-  return db.all(llm`ユーザーを${id}で取得する`);
+export async function getUser(db: any, id: string): Promise<User[]> {
+  return db.all<User>(llm`ユーザーを${id}で取得する`);
+}
+
+export async function findUserName(db: any, id: string): Promise<string | null> {
+  return db.get<string>(llm`Find user name by id ${id}`);
 }
 ```
+
+💡 **Tip**: Be explicit with types and methods for better SQL generation:
+- Use `db.get()` for single results, `db.all()` for multiple
+- Add TypeScript return types: `Promise<User[]>`, `Promise<string | null>`
+- Use generic types: `db.get<string>()`, `db.all<User>()`
 
 ### 3. Build
 
@@ -90,6 +99,10 @@ interface DrizzleLLMConfig {
 }
 ```
 
+## Author
+
+- [github/iwamatsu0430](https://github.com/iwamatsu0430)
+
 ## License
 
-MIT
+MIT © iwamatsu0430
