@@ -55,9 +55,9 @@ describe('QueryParser', () => {
 
   it('should collect db.llm() calls with type annotations', () => {
     const testFile = join(testDir, 'test.ts');
-    const content = `
-      const users = await db.llm<User>("Get all users");
-    `;
+    const content = `async function test() {
+  const users = await db.llm<User>("Get all users");
+}`;
     
     writeFileSync(testFile, content);
     
