@@ -30,6 +30,10 @@
   },
   "license": "MIT",
   "description": "LLM build query using Drizzle ORM",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "dependencies": {
     "drizzle-orm": "^0.44.2",
     "glob": "^10.3.10"

@@ -283,9 +283,21 @@ function generateDistributedQueryFile(queries: GeneratedQuery[], sourceFile: str
     }
   });
   
-  // AST解析で型定義の場所を探す
-  const typeImports = usedTypes.size > 0 
-    ? generateTypeImports(Array.from(usedTypes), sourceFile)
+  // Filter out TypeScript built-in types
+  const builtInTypes = new Set([
+    'string', 'number', 'boolean', 'undefined', 'null', 'void', 'any', 'unknown', 'never',
+    'Date', 'Array', 'Object', 'Promise', 'Map', 'Set', 'Error', 'RegExp'
+  ]);
+  
+  const customTypes = Array.from(usedTypes).filter(type => {
+    // Extract base type for array types
+    const baseType = type.replace(/\[\]$/, '');
+    return !builtInTypes.has(baseType);
+  });
+  
+  // Find type definitions using AST analysis
+  const typeImports = customTypes.length > 0 
+    ? generateTypeImports(customTypes, sourceFile)
     : '';
   
   const imports = `// Generated queries for ${fileName}
@@ -316,7 +328,7 @@ registerQueries(${camelCaseName}Queries, ${camelCaseName}IntentToId);
 }
 
 /**
- * AST解析で型定義の場所を探してインポート文を生成
+ * Generate import statements by finding type definitions using AST analysis
  */
 function generateTypeImports(typeNames: string[], sourceFile: string): string {
   const project = new Project({
@@ -338,7 +350,7 @@ function generateTypeImports(typeNames: string[], sourceFile: string): string {
     }
   }
 
-  // インポート文を生成
+  // Generate import statements
   const importStatements = Array.from(imports.entries())
     .map(([path, types]) => `import type { ${[...new Set(types)].join(', ')} } from '${path}';`)
     .join('\n');
@@ -347,10 +359,10 @@ function generateTypeImports(typeNames: string[], sourceFile: string): string {
 }
 
 /**
- * 型定義の場所を探す
+ * Find type definition location
  */
 function findTypeDefinition(sourceFile: any, typeName: string, currentFilePath: string) {
-  // 1. 同じファイル内で定義されているかチェック
+  // 1. Check if defined in the same file
   const localDefinition = findLocalTypeDefinition(sourceFile, typeName);
   if (localDefinition) {
     const fileName = currentFilePath.split('/').pop()?.replace('.ts', '') || 'queries';
@@ -360,7 +372,7 @@ function findTypeDefinition(sourceFile: any, typeName: string, currentFilePath: 
     };
   }
 
-  // 2. インポート文を解析して外部の型定義を探す
+  // 2. Analyze import statements to find external type definitions
   const importDeclarations = sourceFile.getImportDeclarations();
   
   for (const importDecl of importDeclarations) {
@@ -376,7 +388,7 @@ function findTypeDefinition(sourceFile: any, typeName: string, currentFilePath: 
       }
     }
 
-    // default import や namespace import もチェック
+    // Also check default import and namespace import
     const defaultImport = importDecl.getDefaultImport();
     if (defaultImport && defaultImport.getText() === typeName) {
       return {
@@ -386,7 +398,7 @@ function findTypeDefinition(sourceFile: any, typeName: string, currentFilePath: 
     }
   }
 
-  // 3. 見つからない場合は同じファイルからの推測インポートを返す
+  // 3. Return inferred import from the same file if not found
   const fileName = currentFilePath.split('/').pop()?.replace('.ts', '') || 'queries';
   return {
     importPath: `./${fileName}`,
@@ -395,10 +407,10 @@ function findTypeDefinition(sourceFile: any, typeName: string, currentFilePath: 
 }
 
 /**
- * ローカルファイル内で型定義を探す
+ * Find type definition within local file
  */
 function findLocalTypeDefinition(sourceFile: any, typeName: string): boolean {
-  // インターフェース定義をチェック
+  // Check interface definitions
   const interfaces = sourceFile.getInterfaces();
   for (const interfaceDecl of interfaces) {
     if (interfaceDecl.getName() === typeName) {
@@ -406,7 +418,7 @@ function findLocalTypeDefinition(sourceFile: any, typeName: string): boolean {
     }
   }
 
-  // 型エイリアス定義をチェック
+  // Check type alias definitions
   const typeAliases = sourceFile.getTypeAliases();
   for (const typeAlias of typeAliases) {
     if (typeAlias.getName() === typeName) {
@@ -414,7 +426,7 @@ function findLocalTypeDefinition(sourceFile: any, typeName: string): boolean {
     }
   }
 
-  // クラス定義をチェック
+  // Check class definitions
   const classes = sourceFile.getClasses();
   for (const classDecl of classes) {
     if (classDecl.getName() === typeName) {
@@ -422,7 +434,7 @@ function findLocalTypeDefinition(sourceFile: any, typeName: string): boolean {
     }
   }
 
-  // Enum定義をチェック
+  // Check enum definitions
   const enums = sourceFile.getEnums();
   for (const enumDecl of enums) {
     if (enumDecl.getName() === typeName) {
