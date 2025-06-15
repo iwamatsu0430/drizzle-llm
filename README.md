@@ -1,5 +1,9 @@
 # Drizzle LLM
 
+[![npm version](https://badge.fury.io/js/drizzle-llm.svg)](https://badge.fury.io/js/drizzle-llm)
+[![npm downloads](https://img.shields.io/npm/dm/drizzle-llm.svg)](https://www.npmjs.com/package/drizzle-llm)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Build-time SQL generation using LLM with natural language queries.
 
 ## Installation
