@@ -2,16 +2,15 @@ import type { Sqlite } from "@/types";
 import { llm } from "drizzle-llm";
 import type { User } from "./types";
 
-export async function findName(db: Sqlite, id: string): Promise<string | undefined> {
-  return await db.get<string>(llm`Find the user name by id ${id}`);
+// Easy: Simple SELECT queries
+export async function findById(db: Sqlite, id: string): Promise<User | undefined> {
+  return await db.get<User>(llm`ユーザーIDが ${id} のユーザーを取得`);
 }
 
 export async function list(db: Sqlite): Promise<User[]> {
-  return await db.all<User>(llm`ユーザーを全件取得する`);
+  return await db.all<User>(llm`すべてのユーザーを取得する`);
 }
 
-export async function getAverageOfAge(db: Sqlite): Promise<number> {
-  return await db
-    .get<number>(llm`ユーザーの平均年齢を取得する`)
-    .then((value: number) => value ?? -1);
+export async function findByAge(db: Sqlite, age: number): Promise<User[]> {
+  return await db.all<User>(llm`Find users with age ${age}`);
 }

@@ -6,28 +6,28 @@ import { registerQueries } from 'drizzle-llm/runtime';
 import type { User } from './types';
 
 export interface UserQueries {
-  '8c381e8b6af5a90ebcf8c72a27bd3a49': string[];
-  '5eed765f7bd9b64c48e08823ad321f38': User[];
-  '55c42cc0da4e4eb71fd33d70e6896277': number[];
+  '66ca7bdd273aaa80668e05b7a1f0a72c': User[];
+  '169949bcfea717f3fe214df933bdf379': User[];
+  '5eba36b56e582656ff53935dd8550bbd': User[];
 }
 
 export const userQueries = {
-  '8c381e8b6af5a90ebcf8c72a27bd3a49': {
+  '66ca7bdd273aaa80668e05b7a1f0a72c': {
     parameters: ["param1"]
   },
-  '5eed765f7bd9b64c48e08823ad321f38': {
+  '169949bcfea717f3fe214df933bdf379': {
     parameters: []
   },
-  '55c42cc0da4e4eb71fd33d70e6896277': {
-    parameters: []
+  '5eba36b56e582656ff53935dd8550bbd': {
+    parameters: ["param1"]
   }
 };
 
 // Intent to query ID mapping
 export const userIntentToId: Record<string, string> = {
-  "Find the user name by id ${0}": "8c381e8b6af5a90ebcf8c72a27bd3a49",
-  "ユーザーを全件取得する": "5eed765f7bd9b64c48e08823ad321f38",
-  "ユーザーの平均年齢を取得する": "55c42cc0da4e4eb71fd33d70e6896277"
+  "ユーザーIDが ${0} のユーザーを取得": "66ca7bdd273aaa80668e05b7a1f0a72c",
+  "すべてのユーザーを取得する": "169949bcfea717f3fe214df933bdf379",
+  "Find users with age ${0}": "5eba36b56e582656ff53935dd8550bbd"
 };
 
 // Auto-register queries when this file is imported

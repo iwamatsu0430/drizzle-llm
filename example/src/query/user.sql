@@ -1,11 +1,11 @@
--- 8c381e8b6af5a90ebcf8c72a27bd3a49
--- Find the user name by id ${0}
-SELECT name FROM user WHERE id = $1
+-- 66ca7bdd273aaa80668e05b7a1f0a72c
+-- ユーザーIDが ${0} のユーザーを取得
+SELECT id, name, age FROM "user" WHERE id = $1
 
--- 5eed765f7bd9b64c48e08823ad321f38
--- ユーザーを全件取得する
-SELECT "id", "name", "age" FROM "user"
+-- 169949bcfea717f3fe214df933bdf379
+-- すべてのユーザーを取得する
+SELECT id, name, age FROM user
 
--- 55c42cc0da4e4eb71fd33d70e6896277
--- ユーザーの平均年齢を取得する
-SELECT AVG(age) FROM user
+-- 5eba36b56e582656ff53935dd8550bbd
+-- Find users with age ${0}
+SELECT "id", "name", "age" FROM "user" WHERE "age" = $1
