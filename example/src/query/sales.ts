@@ -9,7 +9,7 @@ export async function getUserSalesAnalytics(db: Sqlite): Promise<SalesReport[]> 
   );
 }
 
-export async function getTopSellingProductsWithTrend(db: Sqlite, days: number = 30): Promise<ProductSalesReport[]> {
+export async function getTopSellingProductsWithTrend(db: Sqlite, days = 30): Promise<ProductSalesReport[]> {
   return await db.all<ProductSalesReport>(
     llm`過去${days}日間で最も売れた商品を、売上数量・売上金額・売上回数と前期比成長率と一緒に表示`
   );

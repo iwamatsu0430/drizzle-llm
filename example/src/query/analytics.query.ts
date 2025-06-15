@@ -3,24 +3,6 @@
 
 import { registerQueries } from 'drizzle-llm/runtime';
 
-import type { {
-    totalUsers: number;
-    totalProducts: number;
-    totalSales: number;
-    totalRevenue: number;
-  }, {
-    categoryId: string;
-    categoryName: string;
-    productCount: number;
-    totalRevenue: number;
-    avgProductPrice: number;
-  }, {
-    productId: string;
-    productName: string;
-    currentStock: number;
-    salesLastMonth: number;
-    estimatedDaysLeft: number;
-  } } from './analytics';
 
 export interface AnalyticsQueries {
   '43406fa2281aaff9e9dbec90fdaf80bd': {

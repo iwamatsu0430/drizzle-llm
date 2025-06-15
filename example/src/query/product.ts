@@ -11,7 +11,7 @@ export async function searchByPriceRange(db: Sqlite, minPrice: number, maxPrice:
   return await db.all<Product>(llm`価格が ${minPrice} 円以上 ${maxPrice} 円以下の商品を検索`);
 }
 
-export async function findLowStock(db: Sqlite, threshold: number = 10): Promise<Product[]> {
+export async function findLowStock(db: Sqlite, threshold = 10): Promise<Product[]> {
   return await db.all<Product>(llm`在庫が${threshold}個以下のアクティブな商品を在庫の少ない順で表示`);
 }
 
