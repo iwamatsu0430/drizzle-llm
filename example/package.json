@@ -11,7 +11,7 @@
   "description": "An example project using drizzle-llm",
   "dependencies": {
     "better-sqlite3": "^11.10.0",
-    "drizzle-llm": "^0.0.1",
+    "drizzle-llm": "^0.0.2",
     "drizzle-orm": "^0.44.2"
   },
   "devDependencies": {
