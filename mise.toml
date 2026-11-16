@@ -1,0 +1,35 @@
+# Toolchain and tasks for drizzle-llm. Run `mise install`, then `mise tasks` to list tasks.
+
+[tools]
+node = "24"
+
+[tasks.install]
+description = "Install the root dependencies from package-lock.json"
+run = "npm ci --no-audit --no-fund"
+
+[tasks.lint]
+description = "Lint the sources with Biome"
+run = "npm run lint"
+
+[tasks.test]
+description = "Run the unit tests once (no watch mode)"
+run = "npm test -- --run"
+
+[tasks.build]
+description = "Compile the TypeScript sources into dist/"
+run = "npm run build"
+
+[tasks.example]
+description = "Install the example project's dependencies and run its tests (needs dist/ from `build`)"
+dir = "example"
+run = ["npm ci --no-audit --no-fund", "npm run test:run"]
+
+[tasks.ci]
+description = "What CI runs: install, lint, tests, build and the example project's tests"
+run = [
+  { task = "install" },
+  { task = "lint" },
+  { task = "test" },
+  { task = "build" },
+  { task = "example" },
+]
