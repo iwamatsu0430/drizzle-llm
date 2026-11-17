@@ -42,13 +42,13 @@
     "README.md"
   ],
   "dependencies": {
-    "drizzle-orm": "^0.44.2",
-    "glob": "^11.0.3",
+    "drizzle-orm": "^0.45.2",
+    "glob": "^14.0.2",
     "minimatch": "^10.0.3",
     "ts-morph": "^26.0.0"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "^1.0.22",
+    "@anthropic-ai/claude-code": "^2.1.251",
     "@anthropic-ai/sdk": "^0.54.0",
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.0.0",
@@ -57,6 +57,6 @@
     "typescript": "^5.8.3",
     "typescript-mcp": "^0.0.12",
     "vite": "^6.3.5",
-    "vitest": "^3.2.3"
+    "vitest": "^4.1.11"
   }
 }
