@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { writeFileSync } from "fs";
-import { resolve } from "path";
+import { isAbsolute, relative, resolve } from "path";
+import { minimatch } from "minimatch";
 import { Project } from "ts-morph";
 import type { Plugin } from "vite";
 import { QueryParser } from "./core/ast-parser.js";
@@ -84,17 +85,7 @@ export function drizzleLLM(config: DrizzleLLMPluginOptions): Plugin {
     async handleHotUpdate(ctx) {
       const { file } = ctx;
 
-      const queryFiles = Array.isArray(config.paths.queries)
-        ? config.paths.queries
-        : [config.paths.queries];
-
-      const isQueryFile = queryFiles.some((pattern) =>
-        file.includes(pattern.replace("**/*", "").replace("*", ""))
-      );
-
-      const isSchemaFile = file.includes(config.paths.schema.replace("**/*", "").replace("*", ""));
-
-      if (isQueryFile || isSchemaFile) {
+      if (isWatchedFile(file, config)) {
         console.log("🔄 Drizzle LLM: Detected changes, regenerating queries...");
 
         try {
@@ -108,6 +99,44 @@ export function drizzleLLM(config: DrizzleLLMPluginOptions): Plugin {
       return;
     },
   };
+}
+
+/**
+ * Decide whether a changed file should trigger query regeneration
+ *
+ * - Query paths are glob patterns, matched against the file path relative to `cwd`
+ *   (the same base `generateQueries` uses when expanding them).
+ * - The schema path is a file or a directory; a file matches when it is that file
+ *   or lies inside that directory.
+ *
+ * @param file - Changed file path (absolute, as Vite reports it)
+ * @param config - Plugin configuration
+ * @param cwd - Base directory for relative paths (defaults to process.cwd())
+ * @internal
+ */
+export function isWatchedFile(
+  file: string,
+  config: Pick<DrizzleLLMConfig, "paths">,
+  cwd: string = process.cwd()
+): boolean {
+  const absoluteFile = resolve(cwd, file);
+  const relativeFile = relative(cwd, absoluteFile).split("\\").join("/");
+
+  const queryPatterns = Array.isArray(config.paths.queries)
+    ? config.paths.queries
+    : [config.paths.queries];
+
+  const isQueryFile = queryPatterns.some((pattern) => {
+    const normalized = pattern.split("\\").join("/").replace(/^\.\//, "");
+    return isAbsolute(pattern)
+      ? minimatch(absoluteFile.split("\\").join("/"), normalized, { dot: true })
+      : minimatch(relativeFile, normalized, { dot: true });
+  });
+  if (isQueryFile) return true;
+
+  const schemaPath = resolve(cwd, config.paths.schema);
+  const fromSchema = relative(schemaPath, absoluteFile);
+  return fromSchema === "" || (!fromSchema.startsWith("..") && !isAbsolute(fromSchema));
 }
 
 /**
