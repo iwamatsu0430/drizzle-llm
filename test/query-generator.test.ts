@@ -3,22 +3,23 @@ import { OpenAIProvider, AnthropicProvider, ConversationalQueryGenerator } from 
 import { DrizzleLLMConfig, SchemaInfo, CollectedQuery } from '../src/types';
 
 // Mock the OpenAI and Anthropic SDKs
+// Vitest 4 calls the implementation with `new`, so it has to be a regular function, not an arrow function.
 vi.mock('openai', () => ({
-  default: vi.fn().mockImplementation(() => ({
+  default: vi.fn().mockImplementation(function () { return {
     chat: {
       completions: {
         create: vi.fn()
       }
     }
-  }))
+  }; })
 }));
 
 vi.mock('@anthropic-ai/sdk', () => ({
-  default: vi.fn().mockImplementation(() => ({
+  default: vi.fn().mockImplementation(function () { return {
     messages: {
       create: vi.fn()
     }
-  }))
+  }; })
 }));
 
 describe('OpenAIProvider', () => {
