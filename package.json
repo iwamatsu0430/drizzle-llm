@@ -58,5 +58,10 @@
     "typescript-mcp": "^0.0.12",
     "vite": "^6.4.4",
     "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "@ts-morph/common": {
+      "minimatch": "11.0.1"
+    }
   }
 }
