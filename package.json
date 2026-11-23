@@ -42,16 +42,19 @@
     "README.md"
   ],
   "dependencies": {
-    "drizzle-orm": "^0.45.2",
     "glob": "^14.0.2",
     "minimatch": "^11.0.1",
     "ts-morph": "^26.0.0"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.44.2 <1.0.0"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "^2.1.251",
     "@anthropic-ai/sdk": "^0.54.0",
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.0.0",
+    "drizzle-orm": "^0.45.2",
     "openai": "^5.3.0",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
