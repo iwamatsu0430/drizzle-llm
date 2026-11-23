@@ -9,8 +9,10 @@ Build-time SQL generation using LLM with natural language queries.
 ## Installation
 
 ```bash
-npm install drizzle-llm
+npm install drizzle-llm drizzle-orm
 ```
+
+`drizzle-orm` is a peer dependency: drizzle-llm uses the version your project installs (0.44.2 or later, below 1.0).
 
 ## Quick Start
 
